@@ -1,0 +1,73 @@
+'use client'
+import { useCallback, useEffect, useState } from 'react'
+import { supabase, money, fmtDate, rpc } from '../../../lib/supabase'
+import { useApp, useScope } from '../../../lib/branch'
+import { Head, Err, Modal, Seg } from '../../../lib/ui'
+import { TicketModal } from '../../../lib/ticketui'
+
+const TABS = [['pendiente', 'Por confirmar'], ['completado', 'Confirmados'], ['anulado', 'Rechazados / anulados'], ['', 'Todos']]
+const wa = p => { const d = String(p || '').replace(/\D/g, ''); return d ? 'https://wa.me/' + (d.length === 9 ? '51' + d : d) : null }
+export default function Pedidos() {
+  const { allBranches, branches, settings, refreshPending, reloadBox, box } = useApp(), scope = useScope()
+  const [rows, setRows] = useState([]), [tab, setTab] = useState('pendiente'), [q, setQ] = useState(''), [err, setErr] = useState(''), [sel, setSel] = useState(null), [done, setDone] = useState(null)
+  const [f, setF] = useState({ voucher: 'Nota de Venta', doc: '', paid: false, payment: 'Efectivo' }), [stk, setStk] = useState({}), [proof, setProof] = useState(''), [busy, setBusy] = useState(false), [e2, setE2] = useState('')
+  const bname = id => allBranches.find(b => b.id === id)?.name || ''
+  const load = useCallback(async () => {
+    let x = supabase.from('sales').select('*').eq('source', 'web').order('created_at', { ascending: false }).limit(300); if (scope) x = x.eq('branch_id', scope)
+    const r = await x; setRows(r.data || []); setErr(r.error?.message || '')
+  }, [scope])
+  useEffect(() => { load() }, [load])
+  useEffect(() => { window.addEventListener('pedido-web', load); return () => window.removeEventListener('pedido-web', load) }, [load])
+  const list = rows.filter(s => (!tab || s.status === tab) && ((s.order_number || '') + (s.number || '') + s.customer_name + (s.phone || '')).toLowerCase().includes(q.toLowerCase()))
+  const open = async o => {
+    setSel(o); setE2(''); setProof(''); setStk({})
+    const pre = o.pay_mode === 'pagar_ahora'; setF({ voucher: 'Nota de Venta', doc: o.customer_doc || '', paid: pre && !!o.payment_proof, payment: pre ? 'Yape' : 'Efectivo' })
+    const ids = (o.items || []).map(i => i.id)
+    supabase.from('branch_stock').select('product_id,stock').eq('branch_id', o.branch_id).in('product_id', ids).then(r => setStk(Object.fromEntries((r.data || []).map(x => [x.product_id, x.stock]))))
+    if (o.payment_proof) { const u = await supabase.storage.from('proofs').createSignedUrl(o.payment_proof, 3600); setProof(u.data?.signedUrl || '') }
+  }
+  const after = (data, msg) => { setSel(null); load(); refreshPending(); reloadBox(); if (msg) setDone(data) }
+  const confirm = async () => {
+    setBusy(true); setE2(''); const x = await rpc('confirm_web_order', { p_id: sel.id, p_voucher: f.voucher, p_doc: f.doc.trim() || null, p_paid: f.paid, p_payment: f.payment }); setBusy(false)
+    if (x.error) return setE2(x.error); after(x.data, true)
+  }
+  const reject = async () => { const why = prompt('Motivo del rechazo (opcional):'); if (why === null) return; const x = await rpc('reject_web_order', { p_id: sel.id, p_reason: why }); if (x.error) return setE2(x.error); after() }
+  const act = async (o, a) => { const x = await rpc('mark_order', { p_id: o.id, p_action: a }); if (x.error) return setErr(x.error); load() }
+  const annul = async o => { if (!confirm2(`¿Anular ${o.number}? El stock volverá a la sede.`)) return; const x = await rpc('annul_sale', { p_id: o.id }); if (x.error) return setErr(x.error); load(); refreshPending() }
+  const confirm2 = m => window.confirm(m)
+  const lack = sel && (sel.items || []).some(i => (stk[i.id] ?? 0) < i.qty), needDoc = f.voucher === 'Factura' && !/^\d{11}$/.test(f.doc.trim())
+  const st = s => s.status === 'pendiente' ? <span className="tag y">Por confirmar</span> : s.status === 'anulado' ? <span className="tag r">{s.reject_reason ? 'Rechazado' : 'Anulado'}</span>
+    : <><span className="tag g">Confirmado</span> <span className={'tag ' + (s.paid ? 'g' : 'y')}>{s.paid ? 'Cobrado' : 'Por cobrar'}</span> <span className="tag">{s.delivery_status === 'entregado' ? 'Entregado' : 'Por entregar'}</span></>
+  return (<><Head t="Pedidos web" s="Confirma los pedidos de la tienda online. El stock solo se descuenta cuando confirmas." /><Err e={err} />
+    <div className="kpis"><div className="kpi" style={{ borderLeftColor: '#f59e0b' }}><span>Por confirmar</span><b>{rows.filter(s => s.status === 'pendiente').length}</b></div>
+      <div className="kpi"><span>Confirmados (por cobrar)</span><b>{rows.filter(s => s.status === 'completado' && !s.paid).length}</b></div><div className="kpi" style={{ borderLeftColor: 'var(--ok)' }}><span>Por entregar</span><b>{rows.filter(s => s.status === 'completado' && s.delivery_status !== 'entregado').length}</b></div></div>
+    <div className="panel"><div className="tabs">{TABS.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
+      <input placeholder="Buscar por pedido, cliente o celular..." value={q} onChange={e => setQ(e.target.value)} style={{ marginBottom: 12 }} />
+      <table><thead><tr><th>Pedido</th><th>Fecha</th><th>Cliente</th>{!scope && <th>Sede</th>}<th>Pago</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+        {list.map(s => <tr key={s.id}><td><b>{s.order_number}</b>{s.number && <><br /><small>{s.number}</small></>}</td><td>{fmtDate(s.created_at)}</td>
+          <td>{s.customer_name}<br />{wa(s.phone) ? <a href={wa(s.phone)} target="_blank" style={{ color: 'var(--ok)' }}><small>💬 {s.phone}</small></a> : <small>{s.phone}</small>}</td>{!scope && <td>{bname(s.branch_id)}</td>}
+          <td>{s.pay_mode === 'pagar_ahora' ? <span className="tag g">Yape{s.payment_proof ? ' · con foto' : ''}</span> : <span className="tag">Contra entrega</span>}</td><td><b>{money(s.total)}</b></td><td>{st(s)}</td>
+          <td style={{ whiteSpace: 'nowrap' }}>{s.status === 'pendiente' && <button className="btn mini" onClick={() => open(s)}>Revisar y confirmar</button>}
+            {s.status === 'completado' && <><button className="chip" onClick={() => setDone(s)}>🖨 Ticket</button> {!s.paid && <button className="chip" onClick={() => act(s, 'paid')}>Marcar cobrado</button>} {s.delivery_status !== 'entregado' && <button className="chip" onClick={() => act(s, 'delivered')}>Entregado</button>} <button className="chip" onClick={() => annul(s)}>Anular</button></>}
+            {s.status === 'anulado' && <button className="chip" onClick={() => open(s)}>Ver</button>}</td></tr>)}
+        {!list.length && <tr><td colSpan="8">No hay pedidos en esta vista.</td></tr>}</tbody></table></div>
+    {sel && <Modal wide title={`Pedido ${sel.order_number} · ${bname(sel.branch_id)}`} onClose={() => setSel(null)}>
+      <div className="fgrid" style={{ alignItems: 'start' }}><div><small>Cliente</small><br /><b>{sel.customer_name}</b><br />{sel.phone}</div><div><small>Fecha</small><br />{fmtDate(sel.created_at)}</div><div><small>Forma de pago</small><br /><b>{sel.pay_mode === 'pagar_ahora' ? 'Pagó con Yape' : 'Contra entrega'}</b></div></div>
+      {(sel.address || sel.notes) && <p>{sel.address && <>📍 {sel.address}<br /></>}{sel.notes && <>📝 {sel.notes}</>}</p>}
+      <table><thead><tr><th>Producto</th><th>Cant.</th><th>Disponible en sede</th><th>Importe</th></tr></thead><tbody>
+        {(sel.items || []).map((i, k) => <tr key={k}><td>{i.name}</td><td>{i.qty}</td><td>{sel.status !== 'pendiente' ? '-' : (stk[i.id] ?? 0) < i.qty ? <span className="warn">Solo {stk[i.id] ?? 0}</span> : <span className="tag g">{stk[i.id]}</span>}</td><td>{money(i.qty * i.price)}</td></tr>)}
+        <tr><td colSpan="3"><b>TOTAL</b></td><td><b>{money(sel.total)}</b></td></tr></tbody></table>
+      {sel.payment_proof && <div><b>Foto del pago</b>{proof ? <a href={proof} target="_blank"><img className="proof" src={proof} alt="Comprobante de pago" /></a> : <p className="sub">Cargando imagen...</p>}</div>}
+      {sel.status === 'anulado' && <p className="warn">Rechazado{sel.reject_reason ? ': ' + sel.reject_reason : ''}</p>}
+      {sel.status === 'pendiente' && <>
+        {lack && <p className="warn" style={{ padding: 10 }}>Falta stock en esta sede. Ingresa mercadería en Almacén, ajusta el producto o rechaza el pedido.</p>}
+        <label>Comprobante a emitir</label><Seg opts={['Nota de Venta', 'Boleta', 'Factura']} v={f.voucher} set={v => setF({ ...f, voucher: v })} />
+        {f.voucher !== 'Nota de Venta' && <input placeholder={f.voucher === 'Factura' ? 'RUC (11 dígitos) *' : 'DNI (opcional)'} value={f.doc} maxLength={11} onChange={e => setF({ ...f, doc: e.target.value.replace(/\D/g, '') })} />}
+        <div className="fgrid"><div><label>Método de pago</label><select value={f.payment} onChange={e => setF({ ...f, payment: e.target.value })}>{['Efectivo', 'Yape', 'Tarjeta', 'Transferencia'].map(m => <option key={m}>{m}</option>)}</select></div>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input type="checkbox" style={{ width: 'auto' }} checked={f.paid} onChange={e => setF({ ...f, paid: e.target.checked })} /> {sel.pay_mode === 'pagar_ahora' ? 'Pago verificado' : 'Ya fue cobrado'}</label></div>
+        {f.paid && f.payment === 'Efectivo' && !box && <small style={{ color: 'var(--mut)' }}>Tip: abre tu caja para que este cobro en efectivo entre al cuadre.</small>}
+        <Err e={e2} /><div className="row" style={{ gap: 8 }}><button className="btn o" style={{ flex: 1 }} onClick={reject}>Rechazar pedido</button><button className="btn g" style={{ flex: 2 }} disabled={busy || lack || needDoc} onClick={confirm}>{busy ? 'Confirmando...' : 'Confirmar y emitir comprobante'}</button></div>
+        <small style={{ color: 'var(--mut)' }}>Al confirmar se descuenta el stock de {bname(sel.branch_id)} y se genera el comprobante.</small></>}
+    </Modal>}
+    {done && <TicketModal sale={done} ctx={{ settings, branch: allBranches.find(b => b.id === done.branch_id) }} onClose={() => setDone(null)} />}</>)
+}
