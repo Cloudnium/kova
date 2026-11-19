@@ -61,8 +61,8 @@ Next.js 14 + Supabase. Tienda pública en `/`, sistema interno en `/admin`.
 - En iPhone no se muestra la imagen grande del anuncio, solo el texto.
 
 ## Stock mínimo y alerta de stock bajo (schema_v7)
-- En **Productos → Nuevo/Editar** hay un campo **Stock mínimo** (por defecto 5; `0` = sin alerta para ese producto). Es el mismo valor para todas las sedes.
-- Un producto está en **stock bajo** cuando tienda + almacén de una sede es menor o igual a su mínimo, y **agotado** cuando es 0.
+- En **Productos → Nuevo/Editar** hay un campo **Stock mínimo** (por defecto 5; `0` = solo avisa cuando se agota). Es el mismo valor para todas las sedes.
+- Un producto está en **stock bajo** cuando tienda + almacén de una sede es menor o igual a su mínimo, y **agotado** cuando es 0 (siempre alerta, incluso con mínimo 0 o si el producto nunca se cargó en esa sede).
 - Al entrar al sistema aparece la ventana **Alerta de inventario**, una vez por sesión y por vista: en una sede muestra esa sede; en «Todas las sedes» muestra todas las sedes a las que tienes acceso (cada fila indica la sede). Un trabajador solo ve sus sedes.
 - Si hay alertas, la barra superior muestra un botón ⚠ con el número para reabrir la ventana. «Ir a inventario» abre Productos filtrado por bajo/agotado.
 - Para cambiar el mínimo de todos los productos a la vez: `update products set min_stock = 10;`

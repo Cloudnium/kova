@@ -30,7 +30,7 @@ export default function Productos() {
   const set = k => e => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value })
   const tot = p => S(p).stock + S(p).wh
   // 'r' agotado · 'y' stock bajo (llegó al mínimo) · 'g' normal. Mínimo 0 = sin alerta
-  const lvl = p => tot(p) < 1 ? (p.min_stock > 0 ? 'r' : 'g') : (p.min_stock > 0 && tot(p) <= p.min_stock ? 'y' : 'g')
+  const lvl = p => tot(p) < 1 ? 'r' : (p.min_stock > 0 && tot(p) <= p.min_stock ? 'y' : 'g')
   const list = rows.filter(p => (p.name + (p.sku || '')).toLowerCase().includes(q.toLowerCase()) && (!cat || p.category === cat) && (!st || (st === 'on') === p.active) && (!sf || (sf === 'agotado' ? tot(p) < 1 : lvl(p) !== 'g')))
   return (<><Head t="Productos" s={`Catálogo común a todas las sedes · stock de ${scope ? branch?.name : 'todas las sedes'}`}><button className="btn" onClick={() => { setE2(''); setF(E) }}><Ico n="plus" s={16} /> Nuevo Producto</button></Head><Err e={err || e3} />
     <div className="kpis"><div className="kpi"><span>Total productos</span><b>{rows.length}</b></div><div className="kpi" style={{ borderLeftColor: '#f59e0b' }}><span>Stock bajo / agotado</span><b>{rows.filter(p => lvl(p) === 'y').length} / {rows.filter(p => lvl(p) === 'r').length}</b></div>
@@ -50,7 +50,7 @@ export default function Productos() {
     {f && <Modal title={f.id ? 'Editar producto' : 'Nuevo producto'} onClose={() => setF(null)}><Err e={e2} />
       <label>Nombre</label><input value={f.name} onChange={set('name')} /><div className="fgrid"><div><label>Código</label><input value={f.sku || ''} onChange={set('sku')} /></div><div><label>Categoría</label><select value={f.category} onChange={set('category')}>{CATS.map(c => <option key={c}>{c}</option>)}</select></div></div>
       <div className="fgrid"><div><label>Precio (S/)</label><input type="number" value={f.price} onChange={set('price')} /></div><div><label>Precio anterior (oferta)</label><input type="number" value={f.old_price} onChange={set('old_price')} /></div></div>
-      <div><label>Stock mínimo (alerta de stock bajo)</label><input type="number" min="0" step="1" value={f.min_stock} onChange={set('min_stock')} /><small style={{ color: 'var(--mut)' }}>Cuando el stock (tienda + almacén) llegue a esta cantidad se avisa al entrar al sistema. Pon 0 para no recibir alertas de este producto.</small></div>
+      <div><label>Stock mínimo (alerta de stock bajo)</label><input type="number" min="0" step="1" value={f.min_stock} onChange={set('min_stock')} /><small style={{ color: 'var(--mut)' }}>Cuando el stock (tienda + almacén) llegue a esta cantidad se avisa al entrar al sistema. Cuando llegue a 0 siempre se avisa como agotado. Pon 0 si solo quieres el aviso de agotado.</small></div>
       {scope ? <><b style={{ fontSize: 13 }}>Stock en {branch?.name}</b><div className="fgrid"><div><label>Stock tienda</label><input type="number" min="0" value={f.stock} onChange={set('stock')} /></div><div><label>Stock almacén</label><input type="number" min="0" value={f.stock_warehouse || 0} onChange={set('stock_warehouse')} /></div></div></>
         : <small style={{ color: 'var(--mut)' }}>Para cargar o cambiar stock elige una sede en la barra superior (cada sede tiene su propio stock).</small>}
       <label>Imagen del producto</label>

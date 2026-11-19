@@ -23,7 +23,7 @@ export default function AdminLayout({ children }) {
   const path = usePathname(), r = useRouter(), [user, setUser] = useState(null), [prof, setProf] = useState(null), [toast, setToast] = useState(null), [pending, setPending] = useState(0), [bad, setBad] = useState('')
   const [col, setCol] = useState(false), [net, setNet] = useState({ s: 'ok', ms: 0 })
   const [all, setAll] = useState([]), [branchId, setBranchId] = useState(null), [settings, setSettings] = useState({}), [menu, setMenu] = useState(false)
-  const [low, setLow] = useState([]), [lowOpen, setLowOpen] = useState(false)
+  const [low, setLow] = useState([]), [lowOpen, setLowOpen] = useState(false), [lowErr, setLowErr] = useState('')
   const [box, setBox] = useState(undefined), [boxM, setBoxM] = useState(false), [bf, setBf] = useState({ name: 'Caja 1', amt: 0 }), [be, setBe] = useState(''), [blocked, setBlocked] = useState(false)
   const asked = useRef(new Set()), acc = useRef([]), cfg = useRef({}), names = useRef({}), menuRef = useRef(null)
 
@@ -88,7 +88,7 @@ export default function AdminLayout({ children }) {
   // alerta de stock bajo: se muestra una vez al entrar (por sede o en "Todas las sedes") y se puede reabrir desde la barra superior
   const loadLow = useCallback(async () => {
     const { rows, error } = await fetchLowStock(branchId === 'all' ? null : branchId)
-    if (error) return setLow([])      // si aún no se ejecutó schema_v7.sql no se muestra nada
+    setLowErr(error); if (error) return setLow([])
     setLow(rows); return rows
   }, [branchId])
   useEffect(() => {
@@ -151,6 +151,7 @@ export default function AdminLayout({ children }) {
           <button onClick={out}><Ico n="logout" s={18} /> Salir</button>
         </div>
       </div>
+      {lowErr && <p style={{ margin: '0 24px', background: '#fef3c7', padding: 12, borderRadius: 8 }}>⚠ No se pudo cargar la alerta de stock: <b>{lowErr}</b>. Ejecuta <code>supabase/schema_v7.sql</code> en Supabase (SQL Editor) y recarga la página.</p>}
       {toast && <div className="toast" style={{ cursor: 'pointer' }} onClick={() => { setToast(null); r.push('/admin/pedidos') }}>🔔 {toast.t}</div>}
       <div className="page">{children}</div>
     </div>
