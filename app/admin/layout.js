@@ -21,13 +21,17 @@ const NET = { ok: 'En línea', slow: 'Conexión lenta', down: 'Sin respuesta del
 
 export default function AdminLayout({ children }) {
   const path = usePathname(), r = useRouter(), [user, setUser] = useState(null), [prof, setProf] = useState(null), [toast, setToast] = useState(null), [pending, setPending] = useState(0), [bad, setBad] = useState('')
-  const [col, setCol] = useState(false), [net, setNet] = useState({ s: 'ok', ms: 0 })
+  const [col, setCol] = useState(false), [narrow, setNarrow] = useState(false), [mob, setMob] = useState(false), [net, setNet] = useState({ s: 'ok', ms: 0 })
   const [all, setAll] = useState([]), [branchId, setBranchId] = useState(null), [settings, setSettings] = useState({}), [menu, setMenu] = useState(false)
   const [low, setLow] = useState([]), [lowOpen, setLowOpen] = useState(false), [lowErr, setLowErr] = useState('')
   const [box, setBox] = useState(undefined), [boxM, setBoxM] = useState(false), [bf, setBf] = useState({ name: 'Caja 1', amt: 0 }), [be, setBe] = useState(''), [blocked, setBlocked] = useState(false)
   const asked = useRef(new Set()), acc = useRef([]), cfg = useRef({}), names = useRef({}), menuRef = useRef(null)
 
   useEffect(() => { try { setCol(localStorage.getItem('side-col') === '1') } catch (e) {} }, [])
+  // pantallas chicas (celular y tablet): el menú lateral es un panel que se abre con el botón ☰
+  useEffect(() => { const m = window.matchMedia('(max-width: 900px)'), f = () => { setNarrow(m.matches); if (!m.matches) setMob(false) }; f(); m.addEventListener('change', f); return () => m.removeEventListener('change', f) }, [])
+  useEffect(() => { setMob(false) }, [path])
+  useEffect(() => { if (!mob) return; const f = e => { if (e.key === 'Escape') setMob(false) }; document.addEventListener('keydown', f); return () => document.removeEventListener('keydown', f) }, [mob])
   const toggle = () => { setCol(c => { try { localStorage.setItem('side-col', c ? '0' : '1') } catch (e) {} return !c }) }
   useEffect(() => {
     let alive = true
@@ -128,16 +132,17 @@ export default function AdminLayout({ children }) {
   const label = branchId === 'all' ? 'Todas las sedes' : branch?.name
   const name = prof?.name || user.email.split('@')[0]
   return (<AppCtx.Provider value={ctx}><div className="app">
-    <aside className={'side' + (col ? ' col' : '')}>
+    {mob && <div className="side-bg" onClick={() => setMob(false)} />}
+    <aside className={'side' + (col && !narrow ? ' col' : '') + (mob ? ' mob' : '')}>
       <div className="brand"><img src={settings.logo_url || '/logo.png'} alt="Logo" /></div>
       <nav className="menu">{MENU.map(([t, items]) => { const v = items.filter(x => !x[3] || isAdmin); return v.length ? <div key={t}><h6>{t}</h6>{v.map(([s, l, i]) => <Link key={s} href={href(s)} title={l} className={path === href(s) ? 'on' : ''}><Ico n={i} /><span className="lb">{l}</span>{s === 'pedidos' && pending > 0 && <span className="mnbadge">{pending}</span>}</Link>)}</div> : null })}</nav>
       <div className="user"><div className="av">{name[0].toUpperCase()}</div><div className="uinfo"><b>{name}</b><br /><small>{isAdmin ? 'Administrador' : 'Trabajador'}</small></div></div>
     </aside>
     <div className="main">
       <div className="bar">
-        <div className="barL"><button className={'tgl' + (col ? ' r' : '')} onClick={toggle} aria-label="Contraer menú"><Ico n="chev" /></button><span>{title}</span></div>
+        <div className="barL"><button className={'tgl' + (col && !narrow ? ' r' : '') + (narrow ? ' burg' : '')} onClick={() => narrow ? setMob(o => !o) : toggle()} aria-label={narrow ? 'Abrir menú' : 'Contraer menú'} aria-expanded={narrow ? mob : undefined}><Ico n={narrow ? 'menu' : 'chev'} /></button><span className="ttl">{title}</span></div>
         <div className="barR">
-          {blocked && <button className="snd" onClick={() => { setBlocked(false); playNotify(settings.notify_sound_url, settings.notify_volume ?? 0.8) }} title="El navegador bloqueó el sonido. Haz clic para activarlo"><Ico n="mute" s={18} /> Activar sonido</button>}
+          {blocked && <button className="snd" onClick={() => { setBlocked(false); playNotify(settings.notify_sound_url, settings.notify_volume ?? 0.8) }} title="El navegador bloqueó el sonido. Haz clic para activarlo"><Ico n="mute" s={18} /> <span className="tx">Activar sonido</span></button>}
           {low.length > 0 && <button className="alertb" onClick={() => setLowOpen(true)} title="Productos con stock bajo o agotado"><Ico n="warn" s={18} /> <span className="nbadge">{low.length}</span></button>}
           <button onClick={() => r.push('/admin/pedidos')} title="Pedidos web pendientes"><Ico n="bell" s={18} /> {pending > 0 ? <span className="nbadge">{pending}</span> : 0}</button>
           <div className="sedeW" ref={menuRef}>
@@ -147,8 +152,8 @@ export default function AdminLayout({ children }) {
               {branches.map(b => <button key={b.id} className={branchId === b.id ? 'on' : ''} onClick={() => pick(b.id)}><span className="ic"><Ico n="store" /></span><span className="tx"><b>{b.name}</b><small>{b.city || b.address || initials(b.name)}</small></span>{branchId === b.id && <Ico n="check" s={18} />}</button>)}
               <button onClick={() => { setSede(null); r.push('/seleccionar-sede') }} style={{ color: 'var(--mut)', fontSize: 13, justifyContent: 'center' }}>Volver a la pantalla de sedes</button></div>}
           </div>
-          <div className={'net ' + net.s} title="Estado de la conexión con el servidor"><i />{NET[net.s]}{net.s === 'ok' || net.s === 'slow' ? ` · ${net.ms} ms` : ''}</div>
-          <button onClick={out}><Ico n="logout" s={18} /> Salir</button>
+          <div className={'net ' + net.s} title={NET[net.s]} role="status"><i /><span className="tx">{NET[net.s]}{net.s === 'ok' || net.s === 'slow' ? ` · ${net.ms} ms` : ''}</span></div>
+          <button className="lo" onClick={out} aria-label="Salir"><Ico n="logout" s={18} /> <span className="tx">Salir</span></button>
         </div>
       </div>
       {lowErr && <p style={{ margin: '0 24px', background: '#fef3c7', padding: 12, borderRadius: 8 }}>⚠ No se pudo cargar la alerta de stock: <b>{lowErr}</b>. Ejecuta <code>supabase/schema_v7.sql</code> en Supabase (SQL Editor) y recarga la página.</p>}

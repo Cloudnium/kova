@@ -31,7 +31,7 @@ export default function Config() {
     <div className="row" style={{ justifyContent: 'flex-start', gap: 8 }}><label className="btn o mini" style={{ cursor: 'pointer', margin: 0 }}>{busy === k ? 'Subiendo...' : 'Subir archivo'}<input type="file" hidden accept={accept} disabled={!!busy} onChange={e => { up(k, e.target.files[0], kind); e.target.value = '' }} /></label>
       {f[k] && <button className="btn o mini" onClick={() => set(k, null)}>Quitar</button>}</div></div>
   return (<><Head t="Configuración" s="Datos del negocio, marca, pagos de la tienda web y sonido de pedidos"><button className="btn" onClick={save}>Guardar cambios</button></Head><Err e={err} />{msg && <p style={{ background: '#dcfce7', padding: 10, borderRadius: 8, marginBottom: 12 }}>✓ {msg}</p>}
-    <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(340px,1fr))', alignItems: 'start' }}>
+    <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(340px,100%),1fr))', alignItems: 'start' }}>
       <div className="panel" style={{ display: 'grid', gap: 10 }}><b>Negocio y tickets</b>
         <label>Nombre comercial</label><input value={f.business_name || ''} onChange={e => set('business_name', e.target.value)} />
         <label>RUC (sale en el ticket)</label><input value={f.business_ruc || ''} maxLength={11} onChange={e => set('business_ruc', e.target.value.replace(/\D/g, ''))} />
