@@ -6,7 +6,7 @@ const SLIDES = [
   { img: '/slide1.png', cls: 'long', kicker: 'Tu bar en casa', title: ['Los licores que', 'mereces brindar'], sub: 'Ron, whisky, pisco y más al mejor precio' },
   { img: '/slide2.png', kicker: 'Añejados en barrica', title: ['Sabor con', 'carácter'], sub: 'Descubre nuestra selección de whiskys y rones' },
   { img: '/slide3.png', kicker: 'Packs y promociones', title: ['Brinda con', 'lo mejor'], sub: 'Descubre nuestra selección de licores y packs' },
-  { img: '/slide4.png', contact: true, kicker: 'Datos de contacto', title: ['Escríbenos', 'al celular'], sub: '' }
+  { img: '/slide4.jpg', contact: true, kicker: 'Datos de contacto', title: ['Escríbenos', 'al celular'], sub: '' }
 ]
 import { supabase, money, CATS, rpc, settingsMap } from '../lib/supabase'
 import { applyBrand } from '../lib/brand'
