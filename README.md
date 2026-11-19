@@ -72,3 +72,6 @@ Next.js 14 + Supabase. Tienda pública en `/`, sistema interno en `/admin`.
 - Envío con urgencia alta y vigencia de 3 días: si el dispositivo está apagado o sin internet, el aviso llega cuando se reconecta.
 - Si el navegador renueva la suscripción, el service worker se vuelve a suscribir solo (`/api/push/resubscribe`).
 - Límites del navegador: en **Windows/Mac**, Chrome/Edge deben estar en ejecución (basta con que esté en segundo plano: Ajustes → Sistema → «Seguir ejecutando aplicaciones en segundo plano»); si el cliente cierra el navegador por completo, el aviso le llega al volver a abrirlo. En **Android** llega siempre. En **iPhone** requiere instalar la web en la pantalla de inicio.
+
+## Ventana de producto en la tienda (schema_v8)
+Ejecuta `supabase/schema_v8.sql` (agrega `products.description`). Al hacer clic en la foto o el nombre de un producto se abre una ventana con foto, descripción, precio y botón «Agregar al carrito». La descripción se escribe en Productos → Nuevo/Editar. La cabecera de la tienda queda fija al hacer scroll.

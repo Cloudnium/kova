@@ -17,8 +17,9 @@ import { pushSupported, subscribeCustomer, pushEnv, PUBLIC_KEY, registerSW } fro
 export default function Tienda() {
   const [prods, setProds] = useState([]), [cat, setCat] = useState('Todas'), [q, setQ] = useState(''), [cfg, setCfg] = useState({}), [branches, setBranches] = useState([]), [bid, setBid] = useState(null), [stock, setStock] = useState({})
   const [cart, setCart] = useState([]), [open, setOpen] = useState(false), [f, setF] = useState({ name: '', phone: '', address: '', notes: '', mode: 'contra_entrega' }), [proof, setProof] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false), [ok, setOk] = useState(null)
-  const [sl, setSl] = useState(0), [menu, setMenu] = useState(false), PHONE = cfg.whatsapp || PHONE0, [pu, setPu] = useState(null)
+  const [sl, setSl] = useState(0), [menu, setMenu] = useState(false), [pv, setPv] = useState(null), PHONE = cfg.whatsapp || PHONE0, [pu, setPu] = useState(null)
   useEffect(() => { registerSW() }, [])
+  useEffect(() => { if (!pv) return; const f = e => e.key === 'Escape' && setPv(null); document.addEventListener('keydown', f); return () => document.removeEventListener('keydown', f) }, [pv])
   // Notificaciones: aviso amable a los pocos segundos (el permiso solo se puede pedir con un toque del usuario)
   useEffect(() => {
     const env = pushEnv(); if (env === 'unsupported') return
@@ -97,12 +98,21 @@ export default function Tienda() {
       {branches.length > 1 && <p style={{ textAlign: 'center', marginBottom: 16 }}>📍 Pedido para la sede: <select style={{ width: 'auto', display: 'inline-block' }} value={bid || ''} onChange={e => pickBranch(e.target.value)}>{branches.map(b => <option key={b.id} value={b.id}>{b.name}{b.city ? ' · ' + b.city : ''}</option>)}</select></p>}
       <div className="grid">{list.map(p => { const off = p.old_price > p.price, n = st(p.id); return <div className="prod" key={p.id}>
         {off && <span className="save">AHORRA {money(p.old_price - p.price)}</span>}
-        <div className="pimg">{p.image_url ? <img src={p.image_url} alt={p.name} /> : <svg width="46" height="120" viewBox="0 0 24 60" fill="none" stroke="#d3cbc8" strokeWidth="1.2"><path d="M10 2h4v10c0 3 5 5 5 10v34a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V22c0-5 5-7 5-10z" /></svg>}</div>
-        <p className="pname">{p.name}</p>
+        <div className="pimg" role="button" tabIndex={0} aria-label={'Ver ' + p.name} onClick={() => setPv(p)} onKeyDown={e => e.key === 'Enter' && setPv(p)}>{p.image_url ? <img src={p.image_url} alt={p.name} /> : <svg width="46" height="120" viewBox="0 0 24 60" fill="none" stroke="#d3cbc8" strokeWidth="1.2"><path d="M10 2h4v10c0 3 5 5 5 10v34a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V22c0-5 5-7 5-10z" /></svg>}</div>
+        <p className="pname" role="button" tabIndex={0} onClick={() => setPv(p)} onKeyDown={e => e.key === 'Enter' && setPv(p)}>{p.name}</p>
         <p className="pprice"><span className={off ? 'now' : ''}>{money(p.price)}</span>{off && <s>{money(p.old_price)}</s>}</p>
         <button className="padd" disabled={n < 1} onClick={() => add(p)}>{n < 1 ? 'Agotado' : 'Agregar'}</button></div> })}
         {!list.length && <p>No hay productos en esta categoría.</p>}</div>
     </main></div>
+    {pv && (() => { const off = pv.old_price > pv.price, n = st(pv.id); return <div className="pv-bg" onClick={() => setPv(null)}><div className="pv" role="dialog" aria-modal="true" aria-label={pv.name} onClick={e => e.stopPropagation()}>
+      <button className="pv-x" aria-label="Cerrar" onClick={() => setPv(null)}>✕</button>
+      <div className="pv-img">{off && <span className="save">AHORRA {money(pv.old_price - pv.price)}</span>}{pv.image_url ? <img src={pv.image_url} alt={pv.name} /> : <svg width="70" height="170" viewBox="0 0 24 60" fill="none" stroke="#d3cbc8" strokeWidth="1.2"><path d="M10 2h4v10c0 3 5 5 5 10v34a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V22c0-5 5-7 5-10z" /></svg>}</div>
+      <div className="pv-info">{pv.category && <small className="pv-cat">{pv.category}</small>}<h3>{pv.name}</h3>
+        <p className="pv-price"><span className={off ? 'now' : ''}>{money(pv.price)}</span>{off && <s>{money(pv.old_price)}</s>}</p>
+        <p className="pv-desc">{pv.description || 'Disfruta responsablemente. Consulta por WhatsApp si necesitas más información de este producto.'}</p>
+        <p className={'pv-stock ' + (n < 1 ? 'out' : n <= 5 ? 'low' : '')}>{n < 1 ? 'Agotado en esta sede' : n <= 5 ? `¡Últimas ${n} unidades!` : 'Disponible'}</p>
+        <button className="btn pv-add" disabled={n < 1} onClick={() => { add(pv); setPv(null) }}>{n < 1 ? 'Agotado' : 'Agregar al carrito'}</button></div>
+    </div></div> })()}
     {open && <aside className="drawer" style={{ overflow: 'auto' }}>
       <div className="row"><b>Tu carrito</b><button className="btn o" onClick={() => setOpen(false)}>Cerrar</button></div>
       <div>{cart.map(i => <div className="ci" key={i.id}>

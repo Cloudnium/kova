@@ -310,3 +310,19 @@ html{-webkit-text-size-adjust:100%}img{max-width:100%}
 @media(max-width:700px){.top{gap:6px;padding:10px 12px}.topL{gap:6px}.topL .search{gap:6px}.topL .search svg{width:20px;height:20px}.topL .search input{font-size:16px}}
 @media(max-width:700px){.topL .search svg{display:none}.topL .search input{padding:6px 0}.logo-img{height:40px}}
 @media(max-width:700px){.topL{gap:2px}.topL .search input::placeholder{font-size:14.5px}.top{padding:10px 10px}}
+/* v12: cabecera fija y ventana de producto */
+.top{position:sticky;top:0;z-index:40}
+.pimg[role=button],.pname[role=button]{cursor:pointer}.pname[role=button]:hover{text-decoration:underline}
+.pv-bg{position:fixed;inset:0;background:#000a;z-index:75;display:grid;place-items:center;padding:16px;animation:pvf .2s}
+.pv{position:relative;background:#fff;border-radius:16px;width:min(860px,100%);max-height:92dvh;overflow:auto;display:grid;grid-template-columns:1fr 1fr;box-shadow:0 24px 70px #0007;animation:pvr .25s ease-out}
+.pv-x{position:absolute;top:10px;right:12px;z-index:2;width:36px;height:36px;border-radius:50%;border:0;background:#fff;box-shadow:0 2px 8px #0003;font-size:16px}
+.pv-img{position:relative;background:#f6f2f0;display:grid;place-items:center;padding:28px;min-height:360px}.pv-img img{max-width:100%;max-height:420px;object-fit:contain}.pv-img .save{top:14px;left:14px}
+.pv-info{padding:32px 28px;display:flex;flex-direction:column;gap:12px;justify-content:center}
+.pv-cat{color:var(--mut);text-transform:uppercase;letter-spacing:1.5px;font-size:12px}.pv-info h3{font-size:26px;line-height:1.15}
+.pv-price{font-size:26px;font-weight:800}.pv-price .now{color:#e02a2a}.pv-price s{font-size:17px;color:#777;font-weight:400;margin-left:10px}
+.pv-desc{color:#4b4341;line-height:1.55;white-space:pre-line}
+.pv-stock{font-size:13px;color:var(--ok);font-weight:600}.pv-stock.low{color:#b45309}.pv-stock.out{color:#b91c1c}
+.pv-add{padding:14px 20px;border-radius:0;letter-spacing:1px;margin-top:4px}
+@keyframes pvf{from{opacity:0}}@keyframes pvr{from{opacity:0;transform:translateY(14px) scale(.98)}}
+@media(max-width:700px){.pv-bg{align-items:end;padding:0}.pv{grid-template-columns:1fr;border-radius:18px 18px 0 0;max-height:94dvh}.pv-img{min-height:0;padding:20px;height:260px}.pv-img img{max-height:220px}.pv-info{padding:20px 18px 24px}.pv-info h3{font-size:22px}}
+@media(prefers-reduced-motion:reduce){.pv,.pv-bg{animation:none}}

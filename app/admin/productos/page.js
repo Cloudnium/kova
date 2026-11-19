@@ -5,14 +5,14 @@ import { useScope, useApp } from '../../../lib/branch'
 import { useTable, useStockMap, Modal, Head, Err } from '../../../lib/ui'
 import { compressImage, upload, publicUrl, rnd } from '../../../lib/images'
 import { Ico } from '../../../lib/icons'
-const E = { name: '', sku: '', category: 'Ron', price: '', old_price: '', min_stock: 5, stock: 0, stock_warehouse: 0, image_url: '', is_pack: false, active: true }
+const E = { name: '', sku: '', category: 'Ron', price: '', old_price: '', description: '', min_stock: 5, stock: 0, stock_warehouse: 0, image_url: '', is_pack: false, active: true }
 const LEGACY = ['id', 'created_at', 'stock', 'stock_warehouse']
 export default function Productos() {
   const { branch, allBranches } = useApp(), scope = useScope()
   const [rows, load, err] = useTable('products', 'name'), [sm, loadSm, e3] = useStockMap(), [f, setF] = useState(null), [q, setQ] = useState(''), [cat, setCat] = useState(''), [st, setSt] = useState(''), [sf, setSf] = useState(''), [e2, setE2] = useState(''), [busy, setBusy] = useState(false)
   const S = p => sm[p.id] || { stock: 0, wh: 0, by: {} }
   const save = async () => {
-    const d = Object.fromEntries(Object.entries(f).filter(([k]) => !LEGACY.includes(k))), body = { ...d, min_stock: Math.max(0, parseInt(d.min_stock, 10) || 0), price: +d.price, old_price: d.old_price === '' || d.old_price == null ? null : +d.old_price }
+    const d = Object.fromEntries(Object.entries(f).filter(([k]) => !LEGACY.includes(k))), body = { ...d, description: (d.description || '').trim() || null, min_stock: Math.max(0, parseInt(d.min_stock, 10) || 0), price: +d.price, old_price: d.old_price === '' || d.old_price == null ? null : +d.old_price }
     const r = f.id ? await supabase.from('products').update(body).eq('id', f.id).select().single() : await supabase.from('products').insert(body).select().single()
     if (r.error) return setE2(r.error.message)
     if (scope) { const x = await rpc('set_branch_stock', { p_branch: scope, p_product: r.data.id, p_stock: +f.stock || 0, p_wh: +f.stock_warehouse || 0 }); if (x.error) return setE2(x.error) }
@@ -48,7 +48,7 @@ export default function Productos() {
           <td><div style={{ display: 'flex', gap: 14 }}><button className="icb" style={{ color: '#2563eb' }} title="Editar" onClick={() => edit(p)}><Ico n="edit" /></button><button className="icb" style={{ color: p.active ? '#dc2626' : '#16a34a' }} title={p.active ? 'Desactivar' : 'Activar'} onClick={() => toggle(p)}><Ico n="power" /></button></div></td></tr>)}
         {!list.length && <tr><td>No hay productos que coincidan.</td></tr>}</tbody></table></div>
     {f && <Modal title={f.id ? 'Editar producto' : 'Nuevo producto'} onClose={() => setF(null)}><Err e={e2} />
-      <label>Nombre</label><input value={f.name} onChange={set('name')} /><div className="fgrid"><div><label>Código</label><input value={f.sku || ''} onChange={set('sku')} /></div><div><label>Categoría</label><select value={f.category} onChange={set('category')}>{CATS.map(c => <option key={c}>{c}</option>)}</select></div></div>
+      <label>Nombre</label><input value={f.name} onChange={set('name')} /><label>Descripción (se muestra al hacer clic en el producto en la tienda)</label><textarea rows={3} maxLength={600} style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--line)', borderRadius: 6, font: 'inherit', resize: 'vertical' }} value={f.description || ''} onChange={set('description')} placeholder="Ej: Ron añejado 3 años, notas de caña y vainilla. Ideal para cócteles." /><div className="fgrid"><div><label>Código</label><input value={f.sku || ''} onChange={set('sku')} /></div><div><label>Categoría</label><select value={f.category} onChange={set('category')}>{CATS.map(c => <option key={c}>{c}</option>)}</select></div></div>
       <div className="fgrid"><div><label>Precio (S/)</label><input type="number" value={f.price} onChange={set('price')} /></div><div><label>Precio anterior (oferta)</label><input type="number" value={f.old_price} onChange={set('old_price')} /></div></div>
       <div><label>Stock mínimo (alerta de stock bajo)</label><input type="number" min="0" step="1" value={f.min_stock} onChange={set('min_stock')} /><small style={{ color: 'var(--mut)' }}>Cuando el stock (tienda + almacén) llegue a esta cantidad se avisa al entrar al sistema. Cuando llegue a 0 siempre se avisa como agotado. Pon 0 si solo quieres el aviso de agotado.</small></div>
       {scope ? <><b style={{ fontSize: 13 }}>Stock en {branch?.name}</b><div className="fgrid"><div><label>Stock tienda</label><input type="number" min="0" value={f.stock} onChange={set('stock')} /></div><div><label>Stock almacén</label><input type="number" min="0" value={f.stock_warehouse || 0} onChange={set('stock_warehouse')} /></div></div></>
