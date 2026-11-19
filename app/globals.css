@@ -227,3 +227,16 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;p
 }
 @keyframes cm{from{transform:translateX(-100%)}to{transform:none}}
 @media(prefers-reduced-motion:reduce){.cmenu{animation:none}}
+@media(max-width:700px){
+  .slider{height:min(70vh,520px);min-height:380px}
+  .slide{padding:0 20px}
+  .slide .cap{max-width:100%}
+  .slide .cap .kick{font-size:clamp(16px,4.5vw,22px)}
+  .slide .cap h1{font-size:clamp(30px,9vw,46px);line-height:.98;margin:6px 0 12px}
+  .slide .cap p{font-size:clamp(16px,4.5vw,20px);margin-bottom:18px}
+  .slide .cap .btn{padding:12px 20px;font-size:13px;letter-spacing:1px}
+  .slide:has(.contact){background-size:contain;background-position:top center;background-repeat:no-repeat;align-items:flex-end;padding-bottom:64px}
+  .slide:has(.contact)::before{background:linear-gradient(0deg,#000 0%,#000e 28%,#0000 68%)}
+  .dots{bottom:14px}
+  .dots button{width:46px}
+}
