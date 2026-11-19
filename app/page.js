@@ -17,7 +17,7 @@ import { pushSupported, subscribeCustomer, pushEnv, PUBLIC_KEY, registerSW } fro
 export default function Tienda() {
   const [prods, setProds] = useState([]), [cat, setCat] = useState('Todas'), [q, setQ] = useState(''), [cfg, setCfg] = useState({}), [branches, setBranches] = useState([]), [bid, setBid] = useState(null), [stock, setStock] = useState({})
   const [cart, setCart] = useState([]), [open, setOpen] = useState(false), [f, setF] = useState({ name: '', phone: '', address: '', notes: '', mode: 'contra_entrega' }), [proof, setProof] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false), [ok, setOk] = useState(null)
-  const [sl, setSl] = useState(0), PHONE = cfg.whatsapp || PHONE0, [pu, setPu] = useState(null)
+  const [sl, setSl] = useState(0), [menu, setMenu] = useState(false), PHONE = cfg.whatsapp || PHONE0, [pu, setPu] = useState(null)
   useEffect(() => { registerSW() }, [])
   // Notificaciones: aviso amable a los pocos segundos (el permiso solo se puede pedir con un toque del usuario)
   useEffect(() => {
@@ -66,6 +66,7 @@ export default function Tienda() {
   const chip = on => ({ border: '1.5px solid ' + (on ? 'var(--red)' : '#ddd'), background: on ? 'var(--red-soft)' : '#fff', borderRadius: 12, padding: '10px 12px', cursor: 'pointer', textAlign: 'left', display: 'block', width: '100%', fontSize: 14 })
   return (<>
     <header className="top">
+      <button className="burger" aria-label="Abrir categorías" aria-expanded={menu} onClick={() => setMenu(true)}><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>
       <label className="search"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7.5" /><path d="M20 20l-3.8-3.8" /></svg>
         <input placeholder="¿Qué busca?" value={q} onChange={e => setQ(e.target.value)} /></label>
       <img className="logo-img" src={cfg.logo_url || '/logo.png'} alt="Logo" />
@@ -75,6 +76,10 @@ export default function Tienda() {
       </button>
     </header>
     <nav className="nav">{['Todas', ...CATS, 'Packs'].map(c => <button key={c} className={cat === c ? 'on' : ''} onClick={() => setCat(c)}>{c.toUpperCase()}</button>)}</nav>
+    {menu && <div className="cmenu-bg" onClick={() => setMenu(false)}><aside className="cmenu" role="dialog" aria-label="Categorías" onClick={e => e.stopPropagation()}>
+      <div className="cmenu-h"><b>Categorías</b><button aria-label="Cerrar" onClick={() => setMenu(false)}>✕</button></div>
+      {['Todas', ...CATS, 'Packs'].map(c => <button key={c} className={cat === c ? 'on' : ''} onClick={() => { setCat(c); setMenu(false); setTimeout(() => document.getElementById('cat')?.scrollIntoView({ behavior: 'smooth' }), 80) }}>{c}{cat === c && <span>✓</span>}</button>)}
+    </aside></div>}
     <section className="slider">
       {SLIDES.map((x, i) => <div key={i} className={'slide' + (i === sl ? ' on' : '') + (x.cls ? ' ' + x.cls : '')} style={x.img ? { backgroundImage: `url(${x.img})` } : undefined}>
         <div className={'cap' + (x.contact ? ' contact' : '')}>
