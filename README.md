@@ -36,3 +36,12 @@ Next.js 14 + Supabase. Tienda pública en `/`, sistema interno en `/admin`.
 - La tienda pide permiso con un aviso amable a los pocos segundos (el navegador exige un toque del usuario). Si lo rechazan no se vuelve a mostrar por 7 días.
 - Requiere HTTPS (en `localhost` también funciona). En **iPhone** solo funciona si el cliente añade la web a su pantalla de inicio (iOS 16.4+); la tienda se lo explica.
 - Los dispositivos que desinstalan o bloquean los avisos se eliminan solos al siguiente envío.
+
+## Despliegue en Vercel
+1. Importa el proyecto (Framework: Next.js, sin configuración extra).
+2. En **Settings → Environment Variables** agrega, marcando **Production y Preview**:
+   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (y opcional `ANTHROPIC_API_KEY`).
+   La URL debe ser `https://xxxx.supabase.co`, sin `/` final, sin comillas ni espacios.
+3. **Importante:** las variables `NEXT_PUBLIC_*` se incrustan al compilar. Si las agregas o cambias *después* de desplegar, haz **Deployments → ⋯ → Redeploy** (desmarca «Use existing Build Cache»).
+4. Abre `https://TU-DOMINIO/diagnostico`: te dice qué variable falta o si hace falta un Redeploy.
+5. En Supabase → Authentication → URL Configuration, pon tu dominio de Vercel en *Site URL*.

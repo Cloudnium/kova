@@ -61,7 +61,7 @@ export default function AdminLayout({ children }) {
 
   // arranque: sesión, perfil, sedes y configuración
   useEffect(() => {
-    if (!SUPA_OK) return setBad('Falta configurar .env.local con las claves de Supabase. Reinicia npm run dev.')
+    if (!SUPA_OK) return setBad('Las claves de Supabase no llegaron a este despliegue. En Vercel: Settings → Environment Variables (marca Production y Preview) y luego Deployments → Redeploy. Abre /api/health para ver qué falta. En local: revisa .env.local y reinicia npm run dev.')
     ;(async () => {
       try {
         const { data } = await supabase.auth.getSession(); if (!data.session) return r.replace('/login')

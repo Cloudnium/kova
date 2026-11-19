@@ -12,7 +12,7 @@ export default function Login() {
   const r = useRouter(), [e, setE] = useState(''), [p, setP] = useState(''), [show, setShow] = useState(false), [err, setErr] = useState(''), [load, setLoad] = useState(false)
   const go = async ev => {
     ev.preventDefault(); setErr('')
-    if (!SUPA_OK) return setErr('Falta configurar .env.local con las claves de Supabase. Reinicia npm run dev después.')
+    if (!SUPA_OK) return setErr('Las claves de Supabase no llegaron a este despliegue. En Vercel: Settings → Environment Variables (marca Production y Preview) y luego Deployments → Redeploy. Abre /api/health para ver qué falta. En local: revisa .env.local y reinicia npm run dev.')
     setLoad(true)
     try {
       const { error } = await supabase.auth.signInWithPassword({ email: e, password: p })
