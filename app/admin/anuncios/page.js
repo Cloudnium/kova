@@ -27,7 +27,7 @@ export default function Anuncios() {
   const send = async () => {
     if (!window.confirm(`¿Enviar este anuncio a ${audience} dispositivo(s)? No se puede deshacer.`)) return
     setErr(''); setOk(''); setBusy('send'); const r = await call(payload()).catch(e => ({ error: e.message })); setBusy('')
-    if (r.error) return setErr(r.error); setOk(`Anuncio enviado a ${r.sent} dispositivo(s)${r.failed ? ` (${r.failed} fallaron${r.removed ? `, ${r.removed} ya no estaban activos y se eliminaron` : ''})` : ''}.`); setF(E); load()
+    if (r.error) return setErr(r.error); setOk(`Anuncio enviado a ${r.sent} dispositivo(s)${r.failed ? ` (${r.failed} fallaron${r.removed ? `, ${r.removed} ya no estaban activos y se eliminaron` : ''})` : ''}.${r.motivos?.length ? ' Motivos: ' + r.motivos.join(' | ') : ''}`); setF(E); load()
   }
   const bname = id => allBranches.find(b => b.id === id)?.name || 'Todos'
   const valid = f.title.trim() && f.body.trim()

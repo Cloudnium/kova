@@ -45,3 +45,17 @@ Next.js 14 + Supabase. Tienda pública en `/`, sistema interno en `/admin`.
 3. **Importante:** las variables `NEXT_PUBLIC_*` se incrustan al compilar. Si las agregas o cambias *después* de desplegar, haz **Deployments → ⋯ → Redeploy** (desmarca «Use existing Build Cache»).
 4. Abre `https://TU-DOMINIO/diagnostico`: te dice qué variable falta o si hace falta un Redeploy.
 5. En Supabase → Authentication → URL Configuration, pon tu dominio de Vercel en *Site URL*.
+
+## Compatibilidad de las notificaciones
+| Dispositivo / navegador | Funciona | Qué hace el cliente |
+|---|---|---|
+| Android: Chrome, Edge, Firefox, Samsung Internet, Opera | Sí | Toca **Activar** en el aviso |
+| Windows / Mac / Linux: Chrome, Edge, Firefox, Opera | Sí | Toca **Activar** |
+| Mac: Safari 16+ | Sí | Toca **Activar** |
+| iPhone / iPad (iOS 16.4+) | Sí, con la web instalada | La tienda le muestra la guía: Compartir → «Añadir a pantalla de inicio» → abrir KOVA desde el ícono → **Activar** |
+| Brave | Sí, tras activar «Usar servicios de Google para mensajería push» en `brave://settings/privacy` | El sistema se lo explica si falla |
+| Navegador dentro de Instagram/Facebook/TikTok | No | La tienda le pide abrirla en Chrome/Safari (botón «Copiar enlace») |
+
+- `VAPID_SUBJECT` debe ser un correo **real** (`mailto:tu@correo.com`) o `https://tudominio.com`. Chrome lo tolera mal escrito, pero Apple rechaza los envíos. `/diagnostico` lo valida.
+- Si un envío falla, la pantalla *Anuncios* muestra el motivo devuelto por el servicio de cada plataforma.
+- En iPhone no se muestra la imagen grande del anuncio, solo el texto.

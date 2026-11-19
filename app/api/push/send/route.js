@@ -23,7 +23,9 @@ export async function POST(req) {
   if (!/^(\/[^\s]*|https:\/\/[^\s]+)$/.test(url)) return bad('El enlace debe empezar con / o https://')
   const image = b.image ? String(b.image) : null
   if (image && !/^https:\/\//.test(image)) return bad('La imagen debe ser una URL https.')
-  webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:admin@example.com', pub, priv)
+  const subject = (process.env.VAPID_SUBJECT || '').trim()
+  if (!/^(mailto:[^\s@:]+@[^\s@]+\.[^\s@]+|https:\/\/[^\s]+)$/.test(subject)) return bad('VAPID_SUBJECT no es válido. Debe ser mailto:tucorreo@dominio.com (con un correo real) o https://tudominio.com. Chrome lo tolera, pero Apple (iPhone/Safari) rechaza los envíos si está mal.', 500)
+  webpush.setVapidDetails(subject, pub, priv)
   const origin = new URL(req.url).origin, payload = JSON.stringify({ title, body, url, image, icon: origin + '/icon-192.png' }), opt = { TTL: 86400, urgency: 'normal' }
 
   // Prueba: solo al dispositivo del administrador, sin tocar la base
@@ -38,14 +40,14 @@ export async function POST(req) {
     const { data, error } = await q; if (error) return bad(error.message, 500)
     subs = subs.concat(data); if (data.length < 1000) break; from += 1000
   }
-  let sent = 0, failed = 0; const dead = []
+  let sent = 0, failed = 0; const dead = [], why = {}
   for (let i = 0; i < subs.length; i += 40) {
     const r = await Promise.allSettled(subs.slice(i, i + 40).map(s => webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, opt)))
-    r.forEach((x, k) => { if (x.status === 'fulfilled') sent++; else { failed++; if ([404, 410].includes(x.reason?.statusCode)) dead.push(subs[i + k].id) } })
+    r.forEach((x, k) => { if (x.status === 'fulfilled') sent++; else { failed++; const m = `${x.reason?.statusCode || ''} ${String(x.reason?.body || x.reason?.message || '').slice(0, 90)}`.trim(); why[m] = (why[m] || 0) + 1; if ([404, 410].includes(x.reason?.statusCode)) dead.push(subs[i + k].id) } })
   }
   // suscripciones caducadas o desinstaladas se limpian solas
   if (dead.length) await g.a.from('push_subscriptions').delete().in('id', dead)
   await g.a.from('push_announcements').insert({ title, body, url, image, branch_id: b.branch_id || null, sent, failed, removed: dead.length, created_by: g.email })
   await g.a.from('audit_log').insert({ user_email: g.email, action: 'Anuncio enviado', detail: `${title} · ${sent} enviados`, branch_id: b.branch_id || null })
-  return Response.json({ sent, failed, removed: dead.length })
+  return Response.json({ sent, failed, removed: dead.length, motivos: Object.entries(why).slice(0, 3).map(([m, n]) => `${n}× ${m}`) })
 }

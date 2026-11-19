@@ -12,7 +12,7 @@ import { supabase, money, CATS, rpc, settingsMap } from '../lib/supabase'
 import { applyBrand } from '../lib/brand'
 import { compressImage, upload, rnd } from '../lib/images'
 import { ticketPDF } from '../lib/tickets'
-import { pushSupported, subscribeCustomer, getSubscription, isIOS, isStandalone, PUBLIC_KEY } from '../lib/push'
+import { pushSupported, subscribeCustomer, pushEnv, PUBLIC_KEY } from '../lib/push'
 
 export default function Tienda() {
   const [prods, setProds] = useState([]), [cat, setCat] = useState('Todas'), [q, setQ] = useState(''), [cfg, setCfg] = useState({}), [branches, setBranches] = useState([]), [bid, setBid] = useState(null), [stock, setStock] = useState({})
@@ -20,16 +20,17 @@ export default function Tienda() {
   const [sl, setSl] = useState(0), PHONE = cfg.whatsapp || PHONE0, [pu, setPu] = useState(null)
   // Notificaciones: aviso amable a los pocos segundos (el permiso solo se puede pedir con un toque del usuario)
   useEffect(() => {
-    if (!pushSupported() && !(isIOS() && !isStandalone())) return
+    const env = pushEnv(); if (env === 'unsupported') return
     let t; try { if (Date.now() - +(localStorage.getItem('push-dismissed') || 0) < 7 * 864e5) return } catch (e) {}
-    if (!pushSupported()) { t = setTimeout(() => setPu('ios'), 6000); return () => clearTimeout(t) }
-    if (!PUBLIC_KEY || Notification.permission === 'denied') return
-    if (Notification.permission === 'default') t = setTimeout(() => setPu('ask'), 5000)
+    if (env === 'ok') { if (!PUBLIC_KEY || Notification.permission !== 'default') return; t = setTimeout(() => setPu('ask'), 5000) }
+    else t = setTimeout(() => setPu(env), 6000)      // 'ios' (instalar la web) o 'inapp' (abrir en el navegador)
     return () => clearTimeout(t)
   }, [])
   // si ya aceptó antes, mantenemos su suscripción al día con la sede elegida
   useEffect(() => { if (bid && pushSupported() && PUBLIC_KEY && Notification.permission === 'granted') subscribeCustomer(bid).catch(() => {}) }, [bid])
   const dismissPu = () => { try { localStorage.setItem('push-dismissed', String(Date.now())) } catch (e) {} setPu(null) }
+  const [guide, setGuide] = useState(false)
+  const copyLink = async () => { try { await navigator.clipboard.writeText(location.href); setPu('copied'); setTimeout(() => setPu(null), 4000) } catch (e) { setPu(null) } }
   const enablePu = async () => { try { await subscribeCustomer(bid); setPu('ok'); setTimeout(() => setPu(null), 5000) } catch (e) { dismissPu() } }
   useEffect(() => { const t = setInterval(() => setSl(i => (i + 1) % SLIDES.length), 6000); return () => clearInterval(t) }, [sl])
   useEffect(() => { (async () => {
@@ -124,9 +125,15 @@ export default function Tienda() {
       <p className="sub" style={{ margin: 0 }}>Tu número de pedido es <b>{ok.sale.order_number}</b>. Se descargó tu ticket en PDF; la tienda confirmará tu pedido y te contactará.</p>
       <button className="btn o" onClick={() => ticketPDF(ok.sale, ok.ctx)}>⬇ Descargar ticket de nuevo</button><button className="btn" onClick={() => setOk(null)}>Seguir comprando</button></div></div>}
     {pu && <div className="pushbar" role="dialog" aria-label="Notificaciones">
-      <div style={{ fontSize: 26 }}>{pu === 'ok' ? '✅' : '🔔'}</div>
-      <div style={{ flex: 1 }}>{pu === 'ok' ? <b>¡Listo! Te avisaremos de nuestras ofertas.</b> : pu === 'ios' ? <><b>¿Quieres recibir ofertas?</b><br /><small>En iPhone: toca Compartir y luego «Añadir a pantalla de inicio»; después abre KOVA desde ahí y activa los avisos.</small></> : <><b>¿Te avisamos de ofertas y novedades?</b><br /><small>Recibe promociones de KOVA en tu celular o computadora. Puedes desactivarlo cuando quieras.</small></>}</div>
-      {pu === 'ask' && <button className="btn" onClick={enablePu}>Activar</button>}{pu !== 'ok' && <button className="btn o" onClick={dismissPu}>Ahora no</button>}</div>}
+      <div style={{ fontSize: 26 }}>{pu === 'ok' || pu === 'copied' ? '✅' : '🔔'}</div>
+      <div style={{ flex: 1 }}>{pu === 'ok' ? <b>¡Listo! Te avisaremos de nuestras ofertas.</b> : pu === 'copied' ? <b>Enlace copiado. Pégalo en Chrome o Safari.</b>
+        : pu === 'ios' ? <><b>Instala KOVA en tu iPhone para recibir ofertas</b><br /><small>Es gratis y toma 10 segundos.</small></>
+        : pu === 'inapp' ? <><b>Abre KOVA en tu navegador</b><br /><small>Desde esta app no se pueden activar los avisos. Ábrelo en Chrome o Safari.</small></>
+        : <><b>¿Te avisamos de ofertas y novedades?</b><br /><small>Recibe promociones de KOVA en tu celular o computadora. Puedes desactivarlo cuando quieras.</small></>}</div>
+      {pu === 'ask' && <button className="btn" onClick={enablePu}>Activar</button>}{pu === 'ios' && <button className="btn" onClick={() => setGuide(true)}>Cómo hacerlo</button>}{pu === 'inapp' && <button className="btn" onClick={copyLink}>Copiar enlace</button>}{pu !== 'ok' && pu !== 'copied' && <button className="btn o" onClick={dismissPu}>Ahora no</button>}</div>}
+    {guide && <div className="modal" onClick={() => setGuide(false)}><div className="mbox" onClick={e => e.stopPropagation()}><div className="row"><b>Instalar KOVA en tu iPhone</b><button className="btn o" onClick={() => setGuide(false)}>✕</button></div>
+      <ol style={{ paddingLeft: 20, lineHeight: 1.7, margin: 0 }}><li>Abre esta página en <b>Safari</b>.</li><li>Toca el botón <b>Compartir</b> <span style={{ fontSize: 18 }}>⬆️</span> (barra inferior).</li><li>Elige <b>«Añadir a pantalla de inicio»</b> y toca <b>Añadir</b>.</li><li>Abre <b>KOVA desde tu pantalla de inicio</b> y toca <b>Activar</b> en el aviso.</li></ol>
+      <small style={{ color: 'var(--mut)' }}>Requiere iOS 16.4 o superior. Apple solo permite notificaciones a las webs instaladas así.</small><button className="btn" onClick={() => { setGuide(false); dismissPu() }}>Entendido</button></div></div>}
     <a className="wa" href={`https://wa.me/${PHONE}`} target="_blank" aria-label="WhatsApp"><img src="/whatsapp.png" alt="WhatsApp" /></a>
   </>)
 }
