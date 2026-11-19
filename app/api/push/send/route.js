@@ -26,7 +26,7 @@ export async function POST(req) {
   const subject = (process.env.VAPID_SUBJECT || '').trim()
   if (!/^(mailto:[^\s@:]+@[^\s@]+\.[^\s@]+|https:\/\/[^\s]+)$/.test(subject)) return bad('VAPID_SUBJECT no es válido. Debe ser mailto:tucorreo@dominio.com (con un correo real) o https://tudominio.com. Chrome lo tolera, pero Apple (iPhone/Safari) rechaza los envíos si está mal.', 500)
   webpush.setVapidDetails(subject, pub, priv)
-  const origin = new URL(req.url).origin, payload = JSON.stringify({ title, body, url, image, icon: origin + '/icon-192.png' }), opt = { TTL: 86400, urgency: 'normal' }
+  const origin = new URL(req.url).origin, payload = JSON.stringify({ title, body, url, image, icon: origin + '/icon-192.png' }), opt = { TTL: 259200, urgency: 'high' }
 
   // Prueba: solo al dispositivo del administrador, sin tocar la base
   if (b.test) {

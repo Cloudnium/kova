@@ -5,7 +5,7 @@ Next.js 14 + Supabase. Tienda pública en `/`, sistema interno en `/admin`.
 ## Instalación
 1. `npm install`
 2. Copia `.env.example` a `.env.local` y completa las claves de Supabase.
-3. En Supabase > SQL Editor ejecuta **en orden**: `schema.sql`, `schema_v2.sql`, `schema_v3.sql`, `schema_v4.sql` `schema_v5.sql` y **`schema_v6.sql`** (si ya tenías los 4 primeros, corre solo v5 y v6; son seguros de repetir).
+3. En Supabase > SQL Editor ejecuta **en orden**: `schema.sql`, `schema_v2.sql`, `schema_v3.sql`, `schema_v4.sql` `schema_v5.sql` `schema_v6.sql` y **`schema_v7.sql`** (si ya tenías los 4 primeros, corre solo v5, v6 y v7; son seguros de repetir).
 4. `npm run dev`
 
 ## Qué trae la versión multisede (schema_v5)
@@ -59,3 +59,16 @@ Next.js 14 + Supabase. Tienda pública en `/`, sistema interno en `/admin`.
 - `VAPID_SUBJECT` debe ser un correo **real** (`mailto:tu@correo.com`) o `https://tudominio.com`. Chrome lo tolera mal escrito, pero Apple rechaza los envíos. `/diagnostico` lo valida.
 - Si un envío falla, la pantalla *Anuncios* muestra el motivo devuelto por el servicio de cada plataforma.
 - En iPhone no se muestra la imagen grande del anuncio, solo el texto.
+
+## Stock mínimo y alerta de stock bajo (schema_v7)
+- En **Productos → Nuevo/Editar** hay un campo **Stock mínimo** (por defecto 5; `0` = sin alerta para ese producto). Es el mismo valor para todas las sedes.
+- Un producto está en **stock bajo** cuando tienda + almacén de una sede es menor o igual a su mínimo, y **agotado** cuando es 0.
+- Al entrar al sistema aparece la ventana **Alerta de inventario**, una vez por sesión y por vista: en una sede muestra esa sede; en «Todas las sedes» muestra todas las sedes a las que tienes acceso (cada fila indica la sede). Un trabajador solo ve sus sedes.
+- Si hay alertas, la barra superior muestra un botón ⚠ con el número para reabrir la ventana. «Ir a inventario» abre Productos filtrado por bajo/agotado.
+- Para cambiar el mínimo de todos los productos a la vez: `update products set min_stock = 10;`
+
+## Avisos con la web o el navegador cerrados
+- Los avisos usan Web Push + service worker (`public/sw.js`): el cliente acepta **una sola vez** y recibe los anuncios aunque la pestaña o la web estén cerradas.
+- Envío con urgencia alta y vigencia de 3 días: si el dispositivo está apagado o sin internet, el aviso llega cuando se reconecta.
+- Si el navegador renueva la suscripción, el service worker se vuelve a suscribir solo (`/api/push/resubscribe`).
+- Límites del navegador: en **Windows/Mac**, Chrome/Edge deben estar en ejecución (basta con que esté en segundo plano: Ajustes → Sistema → «Seguir ejecutando aplicaciones en segundo plano»); si el cliente cierra el navegador por completo, el aviso le llega al volver a abrirlo. En **Android** llega siempre. En **iPhone** requiere instalar la web en la pantalla de inicio.

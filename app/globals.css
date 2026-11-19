@@ -191,3 +191,24 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;p
 .pushbar small{color:#6b6361}.pushbar .btn{width:auto;padding:9px 16px;white-space:nowrap}
 @keyframes rise{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
 @media(max-width:600px){.pushbar{flex-wrap:wrap;width:calc(100% - 24px);bottom:84px}.pushbar>div:nth-child(2){flex-basis:60%}}
+/* ALERTA DE INVENTARIO (stock mínimo) */
+.sa-bg{z-index:90}
+.sa{background:#fff;border-radius:18px;width:min(840px,94vw);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px #0005}
+.sa-h{display:flex;justify-content:space-between;gap:12px;padding:24px 28px 16px;border-bottom:1px solid var(--line)}
+.sa-h h2{font-size:22px}.sa-h p{color:var(--mut);margin-top:4px}
+.sa-x{background:none;border:0;font-size:20px;color:#8a8180;padding:4px 8px;align-self:flex-start}
+.sa-b{padding:20px 28px;overflow:auto;flex:1}
+.sa-k{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.sa-kp{border-radius:14px;padding:16px 20px;border:1px solid}.sa-kp span{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;letter-spacing:.5px}.sa-kp b{display:block;font-size:34px;margin-top:6px}
+.sa-kp.r{background:#fff0f0;border-color:#fbd5d5;color:#b91c1c}.sa-kp.y{background:#fffbe6;border-color:#fcefb4;color:#b45309}
+.sa-t{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.sa-th,.sa-tr{display:grid;grid-template-columns:minmax(0,1fr) 110px 80px 110px;gap:12px;align-items:center;padding:14px 20px}
+.sa-th{background:#f8f9fb;color:var(--mut);font-size:12px;font-weight:600;letter-spacing:.5px}.sa-th span:not(:first-child){text-align:center}
+.sa-tr{border-top:1px solid #eee}.sa-tr>div:not(.sa-p){text-align:center}
+.sa-p b{display:block}.sa-p small,.sa-s small,.sa-s em{color:var(--mut);font-size:12px;font-style:normal}.sa-s b{display:block}.sa-s em{display:block;font-size:11px}
+.sa-m{color:var(--mut)}
+.sa-tag{padding:3px 12px;border-radius:12px;font-size:12px;font-weight:600}.sa-tag.r{background:#fee2e2;color:#b91c1c}.sa-tag.y{background:#fef3c7;color:#92400e}
+.sa-f{display:flex;justify-content:flex-end;align-items:center;gap:16px;padding:16px 28px;background:#f8f9fb;border-top:1px solid var(--line)}
+.sa-f .btn{display:inline-flex;gap:8px;align-items:center;border-radius:10px;padding:12px 22px}.sa-ok{background:none;border:0;font-weight:600;color:#333}
+.alertb{position:relative}.alertb .nbadge{background:#fbbf24;color:#000}
+@media(max-width:640px){.sa-th{display:none}.sa-tr{grid-template-columns:1fr auto;padding:12px 16px}.sa-m{display:none}.sa-b,.sa-h,.sa-f{padding-left:16px;padding-right:16px}}

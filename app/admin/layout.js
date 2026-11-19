@@ -8,6 +8,7 @@ import { AppCtx } from '../../lib/branch'
 import { applyBrand } from '../../lib/brand'
 import { playNotify } from '../../lib/sound'
 import { Modal, Err } from '../../lib/ui'
+import { StockAlert, fetchLowStock, alertSeen, markSeen, clearSeen } from '../../lib/stockalert'
 
 // [ruta, etiqueta, icono, solo administrador]
 const MENU = [['PRINCIPAL', [['', 'Dashboard', 'home'], ['ventas', 'Ventas', 'cart'], ['pedidos', 'Pedidos web', 'bag']]],
@@ -22,6 +23,7 @@ export default function AdminLayout({ children }) {
   const path = usePathname(), r = useRouter(), [user, setUser] = useState(null), [prof, setProf] = useState(null), [toast, setToast] = useState(null), [pending, setPending] = useState(0), [bad, setBad] = useState('')
   const [col, setCol] = useState(false), [net, setNet] = useState({ s: 'ok', ms: 0 })
   const [all, setAll] = useState([]), [branchId, setBranchId] = useState(null), [settings, setSettings] = useState({}), [menu, setMenu] = useState(false)
+  const [low, setLow] = useState([]), [lowOpen, setLowOpen] = useState(false)
   const [box, setBox] = useState(undefined), [boxM, setBoxM] = useState(false), [bf, setBf] = useState({ name: 'Caja 1', amt: 0 }), [be, setBe] = useState(''), [blocked, setBlocked] = useState(false)
   const asked = useRef(new Set()), acc = useRef([]), cfg = useRef({}), names = useRef({}), menuRef = useRef(null)
 
@@ -83,6 +85,21 @@ export default function AdminLayout({ children }) {
   // en cada sede hay que abrir una caja para vender: se ofrece al entrar
   useEffect(() => { if (box === null && branchId && !asked.current.has(branchId)) { asked.current.add(branchId); setBoxM(true) } }, [box, branchId])
 
+  // alerta de stock bajo: se muestra una vez al entrar (por sede o en "Todas las sedes") y se puede reabrir desde la barra superior
+  const loadLow = useCallback(async () => {
+    const { rows, error } = await fetchLowStock(branchId === 'all' ? null : branchId)
+    if (error) return setLow([])      // si aún no se ejecutó schema_v7.sql no se muestra nada
+    setLow(rows); return rows
+  }, [branchId])
+  useEffect(() => {
+    if (!user || !branchId) return
+    const k = user.id + ':' + branchId; let alive = true
+    loadLow().then(rows => { if (alive && rows?.length && !alertSeen(k)) { markSeen(k); setLowOpen(true) } })
+    const i = setInterval(loadLow, 5 * 60000)
+    return () => { alive = false; clearInterval(i) }
+  }, [user, branchId, loadLow])
+  useEffect(() => { const f = () => loadLow(); window.addEventListener('stock-changed', f); return () => window.removeEventListener('stock-changed', f) }, [loadLow])
+
   // pedidos web en vivo + sonido
   useEffect(() => {
     if (!user) return
@@ -107,7 +124,7 @@ export default function AdminLayout({ children }) {
   if (!user || !branchId) return <div style={{ padding: 40 }}>{bad || 'Cargando...'} {bad && <Link href="/login" style={{ color: 'var(--red)' }}>Volver al login</Link>}</div>
   const href = s => '/admin' + (s ? '/' + s : '')
   const title = MENU.flatMap(m => m[1]).find(x => href(x[0]) === path)?.[1] || 'Sistema'
-  const out = async () => { await supabase.auth.signOut(); setSede(null); r.push('/login') }
+  const out = async () => { await supabase.auth.signOut(); setSede(null); clearSeen(); r.push('/login') }
   const label = branchId === 'all' ? 'Todas las sedes' : branch?.name
   const name = prof?.name || user.email.split('@')[0]
   return (<AppCtx.Provider value={ctx}><div className="app">
@@ -121,6 +138,7 @@ export default function AdminLayout({ children }) {
         <div className="barL"><button className={'tgl' + (col ? ' r' : '')} onClick={toggle} aria-label="Contraer menú"><Ico n="chev" /></button><span>{title}</span></div>
         <div className="barR">
           {blocked && <button className="snd" onClick={() => { setBlocked(false); playNotify(settings.notify_sound_url, settings.notify_volume ?? 0.8) }} title="El navegador bloqueó el sonido. Haz clic para activarlo"><Ico n="mute" s={18} /> Activar sonido</button>}
+          {low.length > 0 && <button className="alertb" onClick={() => setLowOpen(true)} title="Productos con stock bajo o agotado"><Ico n="warn" s={18} /> <span className="nbadge">{low.length}</span></button>}
           <button onClick={() => r.push('/admin/pedidos')} title="Pedidos web pendientes"><Ico n="bell" s={18} /> {pending > 0 ? <span className="nbadge">{pending}</span> : 0}</button>
           <div className="sedeW" ref={menuRef}>
             <button className="sedeB" onClick={() => setMenu(!menu)} aria-haspopup="listbox"><Ico n="pin" s={18} /><span>{label}</span><span style={{ transform: menu ? 'rotate(180deg)' : 'none', display: 'grid' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="m6 9 6 6 6-6" /></svg></span></button>
@@ -141,5 +159,6 @@ export default function AdminLayout({ children }) {
       <label>Nombre de la caja</label><input value={bf.name} onChange={e => setBf({ ...bf, name: e.target.value })} />
       <label>Monto inicial en efectivo (S/)</label><input type="number" min="0" value={bf.amt} onChange={e => setBf({ ...bf, amt: e.target.value })} />
       <button className="btn g" onClick={openBox}>Abrir caja</button><button className="btn o" onClick={() => setBoxM(false)}>Ahora no</button></Modal>}
+    {lowOpen && low.length > 0 && <StockAlert rows={low} label={label} onClose={() => setLowOpen(false)} />}
   </div></AppCtx.Provider>)
 }

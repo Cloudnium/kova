@@ -12,12 +12,13 @@ import { supabase, money, CATS, rpc, settingsMap } from '../lib/supabase'
 import { applyBrand } from '../lib/brand'
 import { compressImage, upload, rnd } from '../lib/images'
 import { ticketPDF } from '../lib/tickets'
-import { pushSupported, subscribeCustomer, pushEnv, PUBLIC_KEY } from '../lib/push'
+import { pushSupported, subscribeCustomer, pushEnv, PUBLIC_KEY, registerSW } from '../lib/push'
 
 export default function Tienda() {
   const [prods, setProds] = useState([]), [cat, setCat] = useState('Todas'), [q, setQ] = useState(''), [cfg, setCfg] = useState({}), [branches, setBranches] = useState([]), [bid, setBid] = useState(null), [stock, setStock] = useState({})
   const [cart, setCart] = useState([]), [open, setOpen] = useState(false), [f, setF] = useState({ name: '', phone: '', address: '', notes: '', mode: 'contra_entrega' }), [proof, setProof] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false), [ok, setOk] = useState(null)
   const [sl, setSl] = useState(0), PHONE = cfg.whatsapp || PHONE0, [pu, setPu] = useState(null)
+  useEffect(() => { registerSW() }, [])
   // Notificaciones: aviso amable a los pocos segundos (el permiso solo se puede pedir con un toque del usuario)
   useEffect(() => {
     const env = pushEnv(); if (env === 'unsupported') return
