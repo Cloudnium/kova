@@ -326,3 +326,4 @@ html{-webkit-text-size-adjust:100%}img{max-width:100%}
 @keyframes pvf{from{opacity:0}}@keyframes pvr{from{opacity:0;transform:translateY(14px) scale(.98)}}
 @media(max-width:700px){.pv-bg{align-items:end;padding:0}.pv{grid-template-columns:1fr;border-radius:18px 18px 0 0;max-height:94dvh}.pv-img{min-height:0;padding:20px;height:260px}.pv-img img{max-height:220px}.pv-info{padding:20px 18px 24px}.pv-info h3{font-size:22px}}
 @media(prefers-reduced-motion:reduce){.pv,.pv-bg{animation:none}}
+.mbox>*{flex-shrink:0}textarea{width:100%;font:inherit}
