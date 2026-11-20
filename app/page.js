@@ -1,17 +1,21 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 
-const PHONE0 = '51993344073'
+const PHONE0 = '51922808303'
+const WA_MSG = 'Hola KOVA quisiera hacer el siguiente pedido:'
+const SECS = ['Promociones', 'Combos', 'Ofertas']
+const OFF = p => +p.old_price > +p.price
 const SLIDES = [
-  { img: '/slide1.png', cls: 'long', kicker: 'Tu bar en casa', title: ['Los licores que', 'mereces brindar'], sub: 'Ron, whisky, pisco y más al mejor precio' },
-  { img: '/slide2.png', kicker: 'Añejados en barrica', title: ['Sabor con', 'carácter'], sub: 'Descubre nuestra selección de whiskys y rones' },
-  { img: '/slide3.png', kicker: 'Packs y promociones', title: ['Brinda con', 'lo mejor'], sub: 'Descubre nuestra selección de licores y packs' },
-  { img: '/slide4.jpg', contact: true, kicker: 'Datos de contacto', title: ['Escríbenos', 'al celular'], sub: '' }
+  { img: '/slide1.png', st: 'a', title: ['ELEVA TU', 'MOMENTO.'], sub: 'Cada brindis merece algo especial.', cta: 'EXPLORAR PRODUCTOS.' },
+  { img: '/slide2.png', st: 'b', title: ['LA NOCHE', 'EMPIEZA AQUÍ.'], sub: 'Tú pones el momento, nosotros el brindis.', cta: 'VER PRODUCTOS.' },
+  { img: '/slide3.png', st: 'c', title: ['KOVA LLEGA A TI.'], sub: 'Tu bar favorito, donde estés.', cta: 'PEDIR AHORA.' },
+  { img: '/slide4.jpg', st: 'd', title: ['GRANDES MOMENTOS,', 'GRANDES PRECIOS.'], sub: 'Tus favoritos, a precios que sorprenden.', cta: 'VER OFERTAS.' }
 ]
 import { supabase, money, CATS, rpc, settingsMap } from '../lib/supabase'
 import { applyBrand } from '../lib/brand'
 import { compressImage, upload, rnd } from '../lib/images'
 import { ticketPDF } from '../lib/tickets'
+import { Ticker } from '../lib/ticker'
 import { pushSupported, subscribeCustomer, pushEnv, PUBLIC_KEY, registerSW } from '../lib/push'
 
 export default function Tienda() {
@@ -32,6 +36,25 @@ export default function Tienda() {
   useEffect(() => { if (bid && pushSupported() && PUBLIC_KEY && Notification.permission === 'granted') subscribeCustomer(bid).catch(() => {}) }, [bid])
   const dismissPu = () => { try { localStorage.setItem('push-dismissed', String(Date.now())) } catch (e) {} setPu(null) }
   const [guide, setGuide] = useState(false)
+  // ubicación GPS del cliente (para saber a dónde llevar el pedido)
+  const [gps, setGps] = useState(null), [gpsBusy, setGpsBusy] = useState(false), [gpsErr, setGpsErr] = useState('')
+  const mapUrl = g => `https://www.google.com/maps?q=${g.lat},${g.lng}`
+  const getGps = () => {
+    setGpsErr(''); if (!navigator.geolocation) return setGpsErr('Tu navegador no permite obtener la ubicación.')
+    setGpsBusy(true)
+    navigator.geolocation.getCurrentPosition(
+      p => { setGps({ lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), acc: Math.round(p.coords.accuracy) }); setGpsBusy(false) },
+      e => { setGpsBusy(false); setGpsErr(e.code === 1 ? 'Permiso denegado. Permite la ubicación de este sitio en tu navegador e inténtalo otra vez.' : e.code === 3 ? 'Tardó demasiado. Activa el GPS e inténtalo de nuevo.' : 'No se pudo obtener tu ubicación.') },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 })
+  }
+  // arma el mensaje con la lista del pedido y abre WhatsApp (no registra el pedido en el sistema)
+  const waOrder = () => {
+    const n = x => x.trim()
+    const msg = [WA_MSG, '', ...cart.map(i => `• ${i.qty} x ${i.name} — ${money(i.price * i.qty)}`), '', `Total: ${money(total)}`, '',
+      n(f.name) ? `Nombre: ${n(f.name)}` : null, n(f.phone) ? `Celular: ${n(f.phone)}` : null, n(f.address) ? `Dirección: ${n(f.address)}` : null, n(f.notes) ? `Referencia: ${n(f.notes)}` : null,
+      gps ? `Ubicación: ${mapUrl(gps)}` : null, branch ? `Sede: ${branch.name}` : null, `Pago: ${f.mode === 'pagar_ahora' ? 'Yape' : 'Contra entrega'}`].filter(l => l !== null).join('\n')
+    window.open(`https://wa.me/${PHONE}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener')
+  }
   const copyLink = async () => { try { await navigator.clipboard.writeText(location.href); setPu('copied'); setTimeout(() => setPu(null), 4000) } catch (e) { setPu(null) } }
   const enablePu = async () => { try { await subscribeCustomer(bid); setPu('ok'); setTimeout(() => setPu(null), 5000) } catch (e) { dismissPu() } }
   useEffect(() => { const t = setInterval(() => setSl(i => (i + 1) % SLIDES.length), 6000); return () => clearInterval(t) }, [sl])
@@ -45,7 +68,9 @@ export default function Tienda() {
   useEffect(() => { loadStock() }, [bid])
   const pickBranch = id => { setBid(id); setCart([]); try { localStorage.setItem('store-branch', id) } catch (e) {} }
   const branch = branches.find(b => b.id === bid), st = id => stock[id] ?? 0
-  const list = useMemo(() => prods.filter(p => (cat === 'Todas' || (cat === 'Packs' ? p.is_pack : p.category === cat)) && p.name.toLowerCase().includes(q.toLowerCase())), [prods, cat, q])
+  const list = useMemo(() => prods.filter(p => (cat === 'Todas' || (cat === 'Packs' || cat === 'Combos' ? p.is_pack : cat === 'Ofertas' ? OFF(p) : cat === 'Promociones' ? p.is_pack || OFF(p) : p.category === cat)) && p.name.toLowerCase().includes(q.trim().toLowerCase())), [prods, cat, q])
+  // elige una sección/categoría (o solo aplica la búsqueda) y baja a los productos
+  const goCat = (c, keep) => { if (!keep || c !== 'Todas') setCat(c); setMenu(false); setTimeout(() => document.getElementById('cat')?.scrollIntoView({ behavior: 'smooth' }), 80) }
   const chg = (id, d) => setCart(c => c.map(i => i.id === id ? { ...i, qty: Math.min(i.qty + d, st(id)) } : i).filter(i => i.qty > 0))
   const rm = id => setCart(c => c.filter(i => i.id !== id))
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0)
@@ -56,10 +81,10 @@ export default function Tienda() {
     try {
       let path = null
       if (f.mode === 'pagar_ahora') { const blob = await compressImage(proof, { max: 1400 }); path = await upload('proofs', rnd() + '.webp', blob, 'image/webp') }
-      const x = await rpc('create_web_order', { p_branch: bid, p_name: f.name, p_phone: f.phone, p_address: f.address || null, p_notes: f.notes || null, p_items: cart.map(i => ({ id: i.id, qty: i.qty })), p_pay_mode: f.mode, p_proof: path })
+      const x = await rpc('create_web_order', { p_branch: bid, p_name: f.name, p_phone: f.phone, p_address: f.address || null, p_notes: [f.notes.trim(), gps && 'Ubicación GPS: ' + mapUrl(gps)].filter(Boolean).join(' | ') || null, p_items: cart.map(i => ({ id: i.id, qty: i.qty })), p_pay_mode: f.mode, p_proof: path })
       if (x.error) { setBusy(false); loadStock(); return setErr(x.error) }
       const o = x.data, sale = { ...o, source: 'web', status: 'pendiente', voucher: 'Nota de Venta' }
-      setOk({ sale, ctx: { settings: cfg, branch: o.branch } }); setCart([]); setProof(null); setOpen(false); setF({ ...f, notes: '' }); loadStock()
+      setOk({ sale, ctx: { settings: cfg, branch: o.branch } }); setGps(null); setCart([]); setProof(null); setOpen(false); setF({ ...f, notes: '' }); loadStock()
       try { await ticketPDF(sale, { settings: cfg, branch: o.branch }) } catch (e) {}
     } catch (e) { setErr('No se pudo enviar el pedido. Revisa tu conexión e inténtalo de nuevo.') }
     setBusy(false)
@@ -67,35 +92,43 @@ export default function Tienda() {
   const chip = on => ({ border: '1.5px solid ' + (on ? 'var(--red)' : '#ddd'), background: on ? 'var(--red-soft)' : '#fff', borderRadius: 12, padding: '10px 12px', cursor: 'pointer', textAlign: 'left', display: 'block', width: '100%', fontSize: 14 })
   return (<>
     <header className="top">
-      <div className="topL">
-      <button className="burger" aria-label="Abrir categorías" aria-expanded={menu} onClick={() => setMenu(true)}><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>
-      <label className="search"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7.5" /><path d="M20 20l-3.8-3.8" /></svg>
-        <input placeholder="¿Qué busca?" value={q} onChange={e => setQ(e.target.value)} /></label>
-      </div>
-      <img className="logo-img" src={cfg.logo_url || '/logo.png'} alt="Logo" />
-      <button className="bag" aria-label="Carrito" onClick={() => setOpen(true)}>
-        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M8 8a4 4 0 0 1 8 0" /><path d="M5 8h14v6" /><path d="M5 8v11h8" /><path d="M18 16v5M15.5 18.5h5" /></svg>
+      <div className="topRow">
+        <div className="topL">
+          <button className="burger" aria-label="Abrir categorías" aria-expanded={menu} onClick={() => setMenu(true)}><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>
+          <img className="logo-img" src={cfg.logo_url || '/logo.png'} alt="Logo" />
+        </div>
+        <div className="topR">
+  <nav className="snav" aria-label="Secciones">{SECS.map(c => <button key={c} className={cat === c ? 'on' : ''} onClick={() => goCat(c)}>{c.toUpperCase()}</button>)}</nav>
+        <button className="bag" aria-label="Carrito" onClick={() => setOpen(true)}>
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 9h2V6h3V4h-3V1h-2v3H8v2h3v3zm-4 9c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2zm-9.83-3.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.86-7.01L19.42 4h-.01l-1.1 2-2.76 5H8.53l-.13-.27L6.16 6l-.95-2-.94-2H1v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.13 0-.25-.11-.25-.25z" /></svg>
         {cart.length > 0 && <span className="badge">{cart.reduce((s, i) => s + i.qty, 0)}</span>}
       </button>
+        </div>
+      </div>
     </header>
-    <nav className="nav">{['Todas', ...CATS, 'Packs'].map(c => <button key={c} className={cat === c ? 'on' : ''} onClick={() => setCat(c)}>{c.toUpperCase()}</button>)}</nav>
     {menu && <div className="cmenu-bg" onClick={() => setMenu(false)}><aside className="cmenu" role="dialog" aria-label="Categorías" onClick={e => e.stopPropagation()}>
-      <div className="cmenu-h"><b>Categorías</b><button aria-label="Cerrar" onClick={() => setMenu(false)}>✕</button></div>
-      {['Todas', ...CATS, 'Packs'].map(c => <button key={c} className={cat === c ? 'on' : ''} onClick={() => { setCat(c); setMenu(false); setTimeout(() => document.getElementById('cat')?.scrollIntoView({ behavior: 'smooth' }), 80) }}>{c}{cat === c && <span>✓</span>}</button>)}
+      <div className="cmenu-h"><b>Menú</b><button aria-label="Cerrar" onClick={() => setMenu(false)}>✕</button></div>
+      <form className="cmenu-s" role="search" onSubmit={e => { e.preventDefault(); goCat('Todas', true) }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7.5" /><path d="M20 20l-3.8-3.8" /></svg>
+        <input type="search" enterKeyHint="search" placeholder="¿Qué busca?" aria-label="Buscar productos" value={q} onChange={e => setQ(e.target.value)} />{q && <button type="button" aria-label="Borrar búsqueda" onClick={() => setQ('')}>✕</button>}</form>
+      <small className="cmenu-t">Secciones</small>
+      {SECS.map(c => <button key={c} className={cat === c ? 'on' : ''} onClick={() => goCat(c)}>{c}{cat === c && <span>✓</span>}</button>)}
+      <small className="cmenu-t">Categorías</small>
+      {['Todas', ...CATS].map(c => <button key={c} className={cat === c ? 'on' : ''} onClick={() => goCat(c)}>{c}{cat === c && <span>✓</span>}</button>)}
     </aside></div>}
     <section className="slider">
-      {SLIDES.map((x, i) => <div key={i} className={'slide' + (i === sl ? ' on' : '') + (x.cls ? ' ' + x.cls : '')} style={x.img ? { backgroundImage: `url(${x.img})` } : undefined}>
-        <div className={'cap' + (x.contact ? ' contact' : '')}>
-          <span className="kick">{x.kicker}</span>
-          <h1>{x.title[0]}<br />{x.title[1]}</h1>
-          <p>{x.contact ? (cfg.whatsapp ? '+' + cfg.whatsapp : '+51 993 344 073') : x.sub}</p>
-          {x.contact ? <a className="btn" href={`https://wa.me/${PHONE}`} target="_blank">Escribir por WhatsApp</a>
-            : <button className="btn" onClick={() => document.getElementById('cat').scrollIntoView({ behavior: 'smooth' })}>COMPRAR</button>}
+      {SLIDES.map((x, i) => <div key={i} className={'slide sl-' + x.st + (i === sl ? ' on' : '')} style={x.img ? { backgroundImage: `url(${x.img})` } : undefined} aria-hidden={i !== sl}>
+        <div className="cap">
+          <h1>{x.title.map((t, k) => <span key={k}>{k > 0 && <br />}{t}</span>)}</h1>
+          <p>{x.sub}</p>
+          <button className="cta" tabIndex={i === sl ? 0 : -1} onClick={() => document.getElementById('cat').scrollIntoView({ behavior: 'smooth' })}>{x.cta}</button>
         </div></div>)}
       <div className="dots">{SLIDES.map((_, i) => <button key={i} aria-label={`Slide ${i + 1}`} className={i === sl ? 'on' : ''} onClick={() => setSl(i)} />)}</div>
     </section>
+    {cfg.marquee_on !== false && <Ticker text={cfg.marquee_text ?? 'ELEVA TU MOMENTO · KOVA'} speed={cfg.marquee_speed} />}
     <div className="shop"><main className="wrap" id="cat"><h2>NUESTROS LICORES</h2>
       {branches.length > 1 && <p style={{ textAlign: 'center', marginBottom: 16 }}>📍 Pedido para la sede: <select style={{ width: 'auto', display: 'inline-block' }} value={bid || ''} onChange={e => pickBranch(e.target.value)}>{branches.map(b => <option key={b.id} value={b.id}>{b.name}{b.city ? ' · ' + b.city : ''}</option>)}</select></p>}
+      {(cat !== 'Todas' || q.trim()) && <p className="fbar">Mostrando: <b>{[cat !== 'Todas' && cat, q.trim() && `“${q.trim()}”`].filter(Boolean).join(' · ')}</b> <button onClick={() => { setCat('Todas'); setQ('') }}>✕ Ver todo</button></p>}
+      {!list.length && prods.length > 0 && <p className="fempty">No encontramos productos en esta sección por ahora.</p>}
       <div className="grid">{list.map(p => { const off = p.old_price > p.price, n = st(p.id); return <div className="prod" key={p.id}>
         {off && <span className="save">AHORRA {money(p.old_price - p.price)}</span>}
         <div className="pimg" role="button" tabIndex={0} aria-label={'Ver ' + p.name} onClick={() => setPv(p)} onKeyDown={e => e.key === 'Enter' && setPv(p)}>{p.image_url ? <img src={p.image_url} alt={p.name} /> : <svg width="46" height="120" viewBox="0 0 24 60" fill="none" stroke="#d3cbc8" strokeWidth="1.2"><path d="M10 2h4v10c0 3 5 5 5 10v34a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V22c0-5 5-7 5-10z" /></svg>}</div>
@@ -123,6 +156,10 @@ export default function Tienda() {
       <input placeholder="Tu nombre *" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} />
       <input placeholder="Celular *" inputMode="tel" value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} />
       <input placeholder="Dirección de entrega" value={f.address} onChange={e => setF({ ...f, address: e.target.value })} />
+      <div className="gpsf"><span className="gpsf-t">{gps ? <>📍 <b>{gps.lat}, {gps.lng}</b> <small>(±{gps.acc} m)</small></> : 'Ubicación en tiempo real'}</span>
+        {gps && <a href={mapUrl(gps)} target="_blank" rel="noopener" className="gpsf-l">Ver mapa</a>}
+        <button type="button" className="gpsf-b" disabled={gpsBusy} onClick={getGps}>{gpsBusy ? 'Buscando…' : gps ? 'Actualizar' : '📍 Usar mi ubicación'}</button></div>
+      {gpsErr && <small style={{ color: '#b91c1c', marginTop: -6 }}>⚠ {gpsErr}</small>}
       <input placeholder="Referencia o comentario (opcional)" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} />
       <b style={{ fontSize: 14 }}>Forma de pago</b>
       <button type="button" style={chip(f.mode === 'contra_entrega')} onClick={() => setF({ ...f, mode: 'contra_entrega' })}><b>Pago contra entrega</b><br /><small>Pagas cuando recibes tu pedido</small></button>
@@ -136,6 +173,8 @@ export default function Tienda() {
       {err && <p style={{ color: '#b91c1c', background: '#fee2e2', padding: 10, borderRadius: 8 }}>⚠ {err}</p>}
       <div className="row"><b>Total</b><span className="price">{money(total)}</span></div>
       <button className="btn" disabled={bad || busy} onClick={order}>{busy ? 'Enviando...' : 'Enviar pedido'}</button>
+      <button type="button" className="wabtn" disabled={!cart.length} onClick={waOrder}><img src="/whatsapp.png" alt="" width="22" height="22" /> Hacer pedido por WhatsApp</button>
+      <small style={{ color: '#777', textAlign: 'center' }}>Abre WhatsApp con tu lista de productos para que nos escribas directamente.</small>
     </aside>}
     {ok && <div className="modal" onClick={() => setOk(null)}><div className="mbox" style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
       <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#16a34a', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 34, margin: '0 auto' }}>✓</div>
@@ -152,6 +191,6 @@ export default function Tienda() {
     {guide && <div className="modal" onClick={() => setGuide(false)}><div className="mbox" onClick={e => e.stopPropagation()}><div className="row"><b>Instalar KOVA en tu iPhone</b><button className="btn o" onClick={() => setGuide(false)}>✕</button></div>
       <ol style={{ paddingLeft: 20, lineHeight: 1.7, margin: 0 }}><li>Abre esta página en <b>Safari</b>.</li><li>Toca el botón <b>Compartir</b> <span style={{ fontSize: 18 }}>⬆️</span> (barra inferior).</li><li>Elige <b>«Añadir a pantalla de inicio»</b> y toca <b>Añadir</b>.</li><li>Abre <b>KOVA desde tu pantalla de inicio</b> y toca <b>Activar</b> en el aviso.</li></ol>
       <small style={{ color: 'var(--mut)' }}>Requiere iOS 16.4 o superior. Apple solo permite notificaciones a las webs instaladas así.</small><button className="btn" onClick={() => { setGuide(false); dismissPu() }}>Entendido</button></div></div>}
-    <a className="wa" href={`https://wa.me/${PHONE}`} target="_blank" aria-label="WhatsApp"><img src="/whatsapp.png" alt="WhatsApp" /></a>
+    <a className="wa" href={`https://wa.me/${PHONE}?text=${encodeURIComponent(WA_MSG)}`} target="_blank" aria-label="WhatsApp"><img src="/whatsapp.png" alt="WhatsApp" /></a>
   </>)
 }

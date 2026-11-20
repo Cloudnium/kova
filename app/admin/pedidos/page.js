@@ -53,7 +53,7 @@ export default function Pedidos() {
         {!list.length && <tr><td colSpan="8">No hay pedidos en esta vista.</td></tr>}</tbody></table></div>
     {sel && <Modal wide title={`Pedido ${sel.order_number} · ${bname(sel.branch_id)}`} onClose={() => setSel(null)}>
       <div className="fgrid" style={{ alignItems: 'start' }}><div><small>Cliente</small><br /><b>{sel.customer_name}</b><br />{sel.phone}</div><div><small>Fecha</small><br />{fmtDate(sel.created_at)}</div><div><small>Forma de pago</small><br /><b>{sel.pay_mode === 'pagar_ahora' ? 'Pagó con Yape' : 'Contra entrega'}</b></div></div>
-      {(sel.address || sel.notes) && <p>{sel.address && <>📍 {sel.address}<br /></>}{sel.notes && <>📝 {sel.notes}</>}</p>}
+      {(sel.address || sel.notes) && <p>{sel.address && <>📍 {sel.address}<br /></>}{sel.notes && <>📝 {sel.notes.split(/(https?:\/\/\S+)/).map((t, i) => /^https?:/.test(t) ? <a key={i} href={t} target="_blank" rel="noopener" style={{ color: 'var(--red)', textDecoration: 'underline' }}>Abrir en el mapa</a> : t)}</>}</p>}
       <table><thead><tr><th>Producto</th><th>Cant.</th><th>Disponible en sede</th><th>Importe</th></tr></thead><tbody>
         {(sel.items || []).map((i, k) => <tr key={k}><td>{i.name}</td><td>{i.qty}</td><td>{sel.status !== 'pendiente' ? '-' : (stk[i.id] ?? 0) < i.qty ? <span className="warn">Solo {stk[i.id] ?? 0}</span> : <span className="tag g">{stk[i.id]}</span>}</td><td>{money(i.qty * i.price)}</td></tr>)}
         <tr><td colSpan="3"><b>TOTAL</b></td><td><b>{money(sel.total)}</b></td></tr></tbody></table>

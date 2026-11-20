@@ -1,19 +1,28 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
-import { supabase, fmtDate } from '../../../lib/supabase'
+import { supabase, fmtDate, audit } from '../../../lib/supabase'
+import { Ticker } from '../../../lib/ticker'
 import { useApp } from '../../../lib/branch'
 import { Head, Err } from '../../../lib/ui'
 import { compressImage, upload, publicUrl, rnd } from '../../../lib/images'
 import { PUBLIC_KEY, pushSupported, getSubscription, subJSON } from '../../../lib/push'
 const E = { title: '', body: '', url: '/', image: '', branch_id: '' }
 export default function Anuncios() {
-  const { allBranches, settings } = useApp(), [f, setF] = useState(E), [subs, setSubs] = useState(null), [hist, setHist] = useState([]), [err, setErr] = useState(''), [ok, setOk] = useState(''), [busy, setBusy] = useState(''), [counts, setCounts] = useState({})
+  const { allBranches, settings, reloadSettings } = useApp(), [mq, setMq] = useState(null), [mqMsg, setMqMsg] = useState(''), [f, setF] = useState(E), [subs, setSubs] = useState(null), [hist, setHist] = useState([]), [err, setErr] = useState(''), [ok, setOk] = useState(''), [busy, setBusy] = useState(''), [counts, setCounts] = useState({})
   const load = useCallback(async () => {
     const [s, h] = await Promise.all([supabase.from('push_subscriptions').select('branch_id'), supabase.from('push_announcements').select('*').order('created_at', { ascending: false }).limit(30)])
     if (s.error || h.error) return setErr((s.error || h.error).message + '. ¿Ejecutaste supabase/schema_v6.sql?')
     const c = {}; (s.data || []).forEach(x => c[x.branch_id || 'none'] = (c[x.branch_id || 'none'] || 0) + 1); setCounts(c); setSubs(s.data.length); setHist(h.data || [])
   }, [])
   useEffect(() => { load() }, [load])
+  // franja de texto de la tienda (se guarda en la tabla settings, igual que la configuración)
+  useEffect(() => { if (!mq) setMq({ on: settings.marquee_on !== false, text: settings.marquee_text ?? 'ELEVA TU MOMENTO · KOVA', speed: settings.marquee_speed || 'normal' }) }, [settings])
+  const saveMq = async () => {
+    setErr(''); setMqMsg(''); const t = new Date().toISOString()
+    const { error } = await supabase.from('settings').upsert([{ key: 'marquee_on', value: mq.on, updated_at: t }, { key: 'marquee_text', value: mq.text.trim(), updated_at: t }, { key: 'marquee_speed', value: mq.speed, updated_at: t }])
+    if (error) return setErr(error.message + '. Solo el administrador puede cambiar la franja.')
+    await reloadSettings(); audit('Franja de texto de la tienda', mq.on ? mq.text.trim().slice(0, 80) : 'desactivada'); setMqMsg('Guardado. Ya se ve en la tienda.')
+  }
   const audience = f.branch_id ? counts[f.branch_id] || 0 : subs || 0
   const call = async body => { const { data } = await supabase.auth.getSession(); return fetch('/api/push/send', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + data.session.access_token }, body: JSON.stringify(body) }).then(r => r.json()) }
   const payload = () => ({ title: f.title, body: f.body, url: f.url || '/', image: f.image || null, branch_id: f.branch_id || null })
@@ -32,6 +41,14 @@ export default function Anuncios() {
   const bname = id => allBranches.find(b => b.id === id)?.name || 'Todos'
   const valid = f.title.trim() && f.body.trim()
   return (<><Head t="Anuncios" s="Envía ofertas y novedades como notificación al celular, tablet o computadora de tus clientes" /><Err e={err} />{ok && <p style={{ background: '#dcfce7', padding: 10, borderRadius: 8, marginBottom: 12 }}>✓ {ok}</p>}
+    {mq && <div className="panel" style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
+      <b>Franja de texto en la tienda</b><small style={{ color: 'var(--mut)' }}>Franja negra bajo el slider con texto que pasa de derecha a izquierda. Escribe una frase por línea: se muestran una tras otra.</small>
+      <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input type="checkbox" style={{ width: 'auto' }} checked={mq.on} onChange={e => setMq({ ...mq, on: e.target.checked })} /> Mostrar la franja en la tienda</label>
+      <textarea rows={3} maxLength={400} value={mq.text} onChange={e => setMq({ ...mq, text: e.target.value })} placeholder="Ej: 2x1 en whisky este fin de semana" style={{ width: '100%', minHeight: 80, flexShrink: 0, padding: '9px 12px', border: '1px solid var(--line)', borderRadius: 6, font: 'inherit', resize: 'vertical' }} />
+      <div className="row" style={{ alignItems: 'center' }}><label style={{ margin: 0 }}>Velocidad</label><select style={{ width: 150 }} value={mq.speed} onChange={e => setMq({ ...mq, speed: e.target.value })}><option value="lenta">Lenta</option><option value="normal">Normal</option><option value="rapida">Rápida</option></select><button className="btn" onClick={saveMq}>Guardar franja</button></div>
+      {mqMsg && <small style={{ color: 'var(--ok)' }}>✓ {mqMsg}</small>}
+      {mq.on && <><small style={{ color: 'var(--mut)' }}>Vista previa:</small><div style={{ borderRadius: 8, overflow: 'hidden' }}><Ticker text={mq.text} speed={mq.speed} /></div></>}
+    </div>}
     {!PUBLIC_KEY && <p style={{ background: '#fef3c7', padding: 12, borderRadius: 8, marginBottom: 12 }}>Falta configurar las claves de notificaciones. Genera un par con <code>npx web-push generate-vapid-keys</code> y agrega <code>NEXT_PUBLIC_VAPID_PUBLIC_KEY</code>, <code>VAPID_PRIVATE_KEY</code> y <code>VAPID_SUBJECT</code> a tu <code>.env.local</code> (o a las variables de tu hosting) y reinicia.</p>}
     <div className="kpis"><div className="kpi" style={{ borderLeftColor: 'var(--ok)' }}><span>Clientes suscritos</span><b>{subs ?? '...'}</b><small>dispositivos que aceptaron avisos</small></div><div className="kpi"><span>Anuncios enviados</span><b>{hist.length}</b></div></div>
     <div className="two" style={{ gridTemplateColumns: '1.3fr 1fr' }}><div className="panel" style={{ display: 'grid', gap: 10, alignContent: 'start' }}><b>Nuevo anuncio</b>

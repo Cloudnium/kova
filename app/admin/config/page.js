@@ -36,7 +36,7 @@ export default function Config() {
         <label>Nombre comercial</label><input value={f.business_name || ''} onChange={e => set('business_name', e.target.value)} />
         <label>RUC (sale en el ticket)</label><input value={f.business_ruc || ''} maxLength={11} onChange={e => set('business_ruc', e.target.value.replace(/\D/g, ''))} />
         <label>Mensaje al pie del ticket</label><input placeholder="Gracias por su compra" value={f.ticket_footer || ''} onChange={e => set('ticket_footer', e.target.value)} />
-        <label>WhatsApp de la tienda (con código de país)</label><input placeholder="51999999999" value={f.whatsapp || ''} onChange={e => set('whatsapp', e.target.value.replace(/\D/g, ''))} />
+        <label>WhatsApp de la tienda (con código de país)</label><input placeholder="51922808303" value={f.whatsapp || ''} onChange={e => set('whatsapp', e.target.value.replace(/\D/g, ''))} />
         <Up k="ticket_logo_url" label="Logo para tickets y PDF" kind="img" accept="image/*" hint="Úsalo con fondo claro/transparente: se imprime en blanco y negro o a color sobre papel.">{f.ticket_logo_url && <img src={f.ticket_logo_url} alt="" style={{ maxHeight: 70, objectFit: 'contain', alignSelf: 'start' }} />}</Up></div>
       <div className="panel" style={{ display: 'grid', gap: 10 }}><b>Marca del sistema</b>
         <Up k="logo_url" label="Logo del sistema y la tienda (fondo oscuro)" kind="img" accept="image/*" hint="Se ve sobre fondo negro en el menú, el login y la tienda.">{f.logo_url && <img src={f.logo_url} alt="" style={{ maxHeight: 70, objectFit: 'contain', background: '#000', padding: 8, borderRadius: 10, alignSelf: 'start' }} />}</Up>
