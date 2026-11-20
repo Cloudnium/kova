@@ -75,3 +75,10 @@ Next.js 14 + Supabase. Tienda pública en `/`, sistema interno en `/admin`.
 
 ## Ventana de producto en la tienda (schema_v8)
 Ejecuta `supabase/schema_v8.sql` (agrega `products.description`). Al hacer clic en la foto o el nombre de un producto se abre una ventana con foto, descripción, precio y botón «Agregar al carrito». La descripción se escribe en Productos → Nuevo/Editar. La cabecera de la tienda queda fija al hacer scroll.
+
+## Combos y promociones (schema_v9)
+Ejecuta `supabase/schema_v9.sql` (después de v8) y vuelve a desplegar. Menú **Combos y promos** (solo administrador):
+- **Combos**: varios productos por un precio propio, con foto y descripción. No tienen stock propio: la disponibilidad es lo que alcance de sus productos en cada sede; al venderlos (POS o web) se descuentan esos productos y al anular la venta se devuelven.
+- **Promociones**: descuento en % o precio promocional sobre productos o combos, con fechas de inicio/fin y/o días de la semana (hora de Lima). Se pueden pausar. Si hay varias vigentes, gana el precio más bajo.
+- El precio final lo calcula siempre la base de datos (POS y pedidos web). En el POS aparecen con etiqueta y filtros «Combos» y «Promos»; en la tienda, en las secciones Combos / Promociones / Ofertas.
+- **Anuncios**: en el historial, «↻ Reenviar» vuelve a enviar el anuncio tal cual y «Editar» lo carga en el formulario.

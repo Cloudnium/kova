@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { promoPrice, limaNow } from '../lib/promo'
 
 const PHONE0 = '51922808303'
 const WA_MSG = 'Hola KOVA quisiera hacer el siguiente pedido:'
@@ -19,7 +20,9 @@ import { Ticker } from '../lib/ticker'
 import { pushSupported, subscribeCustomer, pushEnv, PUBLIC_KEY, registerSW } from '../lib/push'
 
 export default function Tienda() {
-  const [prods, setProds] = useState([]), [cat, setCat] = useState('Todas'), [q, setQ] = useState(''), [cfg, setCfg] = useState({}), [branches, setBranches] = useState([]), [bid, setBid] = useState(null), [stock, setStock] = useState({})
+  const [raw, setProds] = useState([]), [promos, setPromos] = useState([]), [cat, setCat] = useState('Todas'), [q, setQ] = useState(''), [cfg, setCfg] = useState({}), [branches, setBranches] = useState([]), [bid, setBid] = useState(null), [stock, setStock] = useState({})
+  // Precio con promoción vigente (el servidor vuelve a calcularlo al registrar el pedido)
+  const prods = useMemo(() => { const now = limaNow(); return raw.map(p => { const r = promoPrice(p, promos, now); return r.promo ? { ...p, price: r.price, old_price: +p.price, promo: r.promo } : p }) }, [raw, promos])
   const [cart, setCart] = useState([]), [open, setOpen] = useState(false), [f, setF] = useState({ name: '', phone: '', address: '', notes: '', mode: 'contra_entrega' }), [proof, setProof] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false), [ok, setOk] = useState(null)
   const [sl, setSl] = useState(0), [menu, setMenu] = useState(false), [pv, setPv] = useState(null), PHONE = cfg.whatsapp || PHONE0, [pu, setPu] = useState(null)
   useEffect(() => { registerSW() }, [])
@@ -59,16 +62,16 @@ export default function Tienda() {
   const enablePu = async () => { try { await subscribeCustomer(bid); setPu('ok'); setTimeout(() => setPu(null), 5000) } catch (e) { dismissPu() } }
   useEffect(() => { const t = setInterval(() => setSl(i => (i + 1) % SLIDES.length), 6000); return () => clearInterval(t) }, [sl])
   useEffect(() => { (async () => {
-    const [p, b, s] = await Promise.all([supabase.from('products').select('*').order('name'), supabase.from('branches').select('*').order('created_at'), supabase.from('settings').select('*')])
-    const c = settingsMap(s.data); setCfg(c); applyBrand(c.brand_color); setProds(p.data || []); setBranches(b.data || [])
+    const [p, b, s, pr] = await Promise.all([supabase.from('products').select('*').order('name'), supabase.from('branches').select('*').order('created_at'), supabase.from('settings').select('*'), supabase.from('promotions').select('*')])
+    const c = settingsMap(s.data); setCfg(c); applyBrand(c.brand_color); setProds(p.data || []); setPromos(pr.data || []); setBranches(b.data || [])
     let saved = null; try { saved = localStorage.getItem('store-branch') } catch (e) {}
     setBid((b.data || []).find(x => x.id === saved)?.id || b.data?.[0]?.id || null)
   })() }, [])
-  const loadStock = () => bid && supabase.from('branch_stock').select('product_id,stock').eq('branch_id', bid).then(r => setStock(Object.fromEntries((r.data || []).map(x => [x.product_id, x.stock]))))
+  const loadStock = () => bid && supabase.rpc('stock_view', { p_branch: bid }).then(r => r.error ? supabase.from('branch_stock').select('product_id,stock').eq('branch_id', bid) : r).then(r => setStock(Object.fromEntries((r.data || []).map(x => [x.product_id, x.stock]))))
   useEffect(() => { loadStock() }, [bid])
   const pickBranch = id => { setBid(id); setCart([]); try { localStorage.setItem('store-branch', id) } catch (e) {} }
   const branch = branches.find(b => b.id === bid), st = id => stock[id] ?? 0
-  const list = useMemo(() => prods.filter(p => (cat === 'Todas' || (cat === 'Packs' || cat === 'Combos' ? p.is_pack : cat === 'Ofertas' ? OFF(p) : cat === 'Promociones' ? p.is_pack || OFF(p) : p.category === cat)) && p.name.toLowerCase().includes(q.trim().toLowerCase())), [prods, cat, q])
+  const list = useMemo(() => prods.filter(p => (cat === 'Todas' || (cat === 'Packs' || cat === 'Combos' ? p.is_pack || p.kind === 'combo' : cat === 'Ofertas' ? OFF(p) : cat === 'Promociones' ? !!p.promo : p.category === cat)) && p.name.toLowerCase().includes(q.trim().toLowerCase())), [prods, cat, q])
   // elige una sección/categoría (o solo aplica la búsqueda) y baja a los productos
   const goCat = (c, keep) => { if (!keep || c !== 'Todas') setCat(c); setMenu(false); setTimeout(() => document.getElementById('cat')?.scrollIntoView({ behavior: 'smooth' }), 80) }
   const chg = (id, d) => setCart(c => c.map(i => i.id === id ? { ...i, qty: Math.min(i.qty + d, st(id)) } : i).filter(i => i.qty > 0))
@@ -130,7 +133,7 @@ export default function Tienda() {
       {(cat !== 'Todas' || q.trim()) && <p className="fbar">Mostrando: <b>{[cat !== 'Todas' && cat, q.trim() && `“${q.trim()}”`].filter(Boolean).join(' · ')}</b> <button onClick={() => { setCat('Todas'); setQ('') }}>✕ Ver todo</button></p>}
       {!list.length && prods.length > 0 && <p className="fempty">No encontramos productos en esta sección por ahora.</p>}
       <div className="grid">{list.map(p => { const off = p.old_price > p.price, n = st(p.id); return <div className="prod" key={p.id}>
-        {off && <span className="save">AHORRA {money(p.old_price - p.price)}</span>}
+        {off && <span className="save">AHORRA {money(p.old_price - p.price)}</span>}{p.promo ? <span className="ptag">🏷 {p.promo.name}</span> : p.kind === 'combo' && <span className="ptag">🎁 Combo</span>}
         <div className="pimg" role="button" tabIndex={0} aria-label={'Ver ' + p.name} onClick={() => setPv(p)} onKeyDown={e => e.key === 'Enter' && setPv(p)}>{p.image_url ? <img src={p.image_url} alt={p.name} /> : <svg width="46" height="120" viewBox="0 0 24 60" fill="none" stroke="#d3cbc8" strokeWidth="1.2"><path d="M10 2h4v10c0 3 5 5 5 10v34a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V22c0-5 5-7 5-10z" /></svg>}</div>
         <p className="pname" role="button" tabIndex={0} onClick={() => setPv(p)} onKeyDown={e => e.key === 'Enter' && setPv(p)}>{p.name}</p>
         <p className="pprice"><span className={off ? 'now' : ''}>{money(p.price)}</span>{off && <s>{money(p.old_price)}</s>}</p>
@@ -139,7 +142,7 @@ export default function Tienda() {
     </main></div>
     {pv && (() => { const off = pv.old_price > pv.price, n = st(pv.id); return <div className="pv-bg" onClick={() => setPv(null)}><div className="pv" role="dialog" aria-modal="true" aria-label={pv.name} onClick={e => e.stopPropagation()}>
       <button className="pv-x" aria-label="Cerrar" onClick={() => setPv(null)}>✕</button>
-      <div className="pv-img">{off && <span className="save">AHORRA {money(pv.old_price - pv.price)}</span>}{pv.image_url ? <img src={pv.image_url} alt={pv.name} /> : <svg width="70" height="170" viewBox="0 0 24 60" fill="none" stroke="#d3cbc8" strokeWidth="1.2"><path d="M10 2h4v10c0 3 5 5 5 10v34a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V22c0-5 5-7 5-10z" /></svg>}</div>
+      <div className="pv-img">{off && <span className="save">AHORRA {money(pv.old_price - pv.price)}</span>}{pv.promo ? <span className="ptag">🏷 {pv.promo.name}</span> : pv.kind === 'combo' && <span className="ptag">🎁 Combo</span>}{pv.image_url ? <img src={pv.image_url} alt={pv.name} /> : <svg width="70" height="170" viewBox="0 0 24 60" fill="none" stroke="#d3cbc8" strokeWidth="1.2"><path d="M10 2h4v10c0 3 5 5 5 10v34a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V22c0-5 5-7 5-10z" /></svg>}</div>
       <div className="pv-info">{pv.category && <small className="pv-cat">{pv.category}</small>}<h3>{pv.name}</h3>
         <p className="pv-price"><span className={off ? 'now' : ''}>{money(pv.price)}</span>{off && <s>{money(pv.old_price)}</s>}</p>
         <p className="pv-desc">{pv.description || 'Disfruta responsablemente. Consulta por WhatsApp si necesitas más información de este producto.'}</p>

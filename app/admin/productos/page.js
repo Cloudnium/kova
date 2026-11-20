@@ -9,7 +9,7 @@ const E = { name: '', sku: '', category: 'Ron', price: '', old_price: '', descri
 const LEGACY = ['id', 'created_at', 'stock', 'stock_warehouse']
 export default function Productos() {
   const { branch, allBranches } = useApp(), scope = useScope()
-  const [rows, load, err] = useTable('products', 'name'), [sm, loadSm, e3] = useStockMap(), [f, setF] = useState(null), [q, setQ] = useState(''), [cat, setCat] = useState(''), [st, setSt] = useState(''), [sf, setSf] = useState(''), [e2, setE2] = useState(''), [busy, setBusy] = useState(false)
+  const [allRows, load, err] = useTable('products', 'name'), rows = allRows.filter(p => p.kind !== 'combo'), [sm, loadSm, e3] = useStockMap(), [f, setF] = useState(null), [q, setQ] = useState(''), [cat, setCat] = useState(''), [st, setSt] = useState(''), [sf, setSf] = useState(''), [e2, setE2] = useState(''), [busy, setBusy] = useState(false)
   const S = p => sm[p.id] || { stock: 0, wh: 0, by: {} }
   const save = async () => {
     const d = Object.fromEntries(Object.entries(f).filter(([k]) => !LEGACY.includes(k))), body = { ...d, description: (d.description || '').trim() || null, min_stock: Math.max(0, parseInt(d.min_stock, 10) || 0), price: +d.price, old_price: d.old_price === '' || d.old_price == null ? null : +d.old_price }

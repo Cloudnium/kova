@@ -38,6 +38,15 @@ export default function Anuncios() {
     setErr(''); setOk(''); setBusy('send'); const r = await call(payload()).catch(e => ({ error: e.message })); setBusy('')
     if (r.error) return setErr(r.error); setOk(`Anuncio enviado a ${r.sent} dispositivo(s)${r.failed ? ` (${r.failed} fallaron${r.removed ? `, ${r.removed} ya no estaban activos y se eliminaron` : ''})` : ''}.${r.motivos?.length ? ' Motivos: ' + r.motivos.join(' | ') : ''}`); setF(E); load()
   }
+  // Reenviar un anuncio ya hecho: tal cual (con confirmación) o cargándolo en el formulario para editarlo antes
+  const resend = async h => {
+    const n = h.branch_id ? counts[h.branch_id] || 0 : subs || 0
+    if (!n) return setErr('No hay dispositivos suscritos para esa audiencia.')
+    if (!window.confirm(`¿Reenviar «${h.title}» a ${n} dispositivo(s) de ${h.branch_id ? bname(h.branch_id) : 'todos los suscritos'}?`)) return
+    setErr(''); setOk(''); setBusy('re' + h.id); const r = await call({ title: h.title, body: h.body, url: h.url || '/', image: h.image || null, branch_id: h.branch_id || null }).catch(e => ({ error: e.message })); setBusy('')
+    if (r.error) return setErr(r.error); setOk(`Anuncio reenviado a ${r.sent} dispositivo(s)${r.failed ? ` (${r.failed} fallaron)` : ''}.`); load()
+  }
+  const reuse = h => { setF({ title: h.title, body: h.body, url: h.url || '/', image: h.image || '', branch_id: h.branch_id || '' }); setOk(''); setErr(''); try { window.scrollTo({ top: 0, behavior: 'smooth' }) } catch (e) {}; document.querySelector('.main, main')?.scrollTo?.({ top: 0, behavior: 'smooth' }) }
   const bname = id => allBranches.find(b => b.id === id)?.name || 'Todos'
   const valid = f.title.trim() && f.body.trim()
   return (<><Head t="Anuncios" s="Envía ofertas y novedades como notificación al celular, tablet o computadora de tus clientes" /><Err e={err} />{ok && <p style={{ background: '#dcfce7', padding: 10, borderRadius: 8, marginBottom: 12 }}>✓ {ok}</p>}
@@ -65,7 +74,7 @@ export default function Anuncios() {
           <div style={{ display: 'flex', gap: 10 }}><img src="/icon-192.png" alt="" style={{ width: 40, height: 40, borderRadius: 8 }} /><div style={{ minWidth: 0 }}><small style={{ color: '#aaa' }}>{settings.business_name || 'KOVA'} · ahora</small><br /><b style={{ wordBreak: 'break-word' }}>{f.title || 'Título del anuncio'}</b><div style={{ fontSize: 13, color: '#ddd', wordBreak: 'break-word' }}>{f.body || 'Aquí va el mensaje que verá tu cliente.'}</div></div></div>
           {f.image && <img src={f.image} alt="" style={{ width: '100%', borderRadius: 8, maxHeight: 160, objectFit: 'cover' }} />}</div>
         <small style={{ color: 'var(--mut)', display: 'block', marginTop: 12 }}>Los clientes aceptan los avisos desde la tienda. Si cambian de opinión pueden bloquearlos en su navegador; los dispositivos que ya no reciben se eliminan solos.</small></div></div>
-    <div className="panel" style={{ marginTop: 16 }}><b>Historial</b><table><thead><tr><th>Fecha</th><th>Anuncio</th><th>Audiencia</th><th>Enviados</th><th>Fallidos</th><th>Por</th></tr></thead><tbody>
-      {hist.map(h => <tr key={h.id}><td>{fmtDate(h.created_at)}</td><td><b>{h.title}</b><br /><small>{h.body}</small></td><td>{h.branch_id ? bname(h.branch_id) : 'Todos'}</td><td><span className="tag g">{h.sent}</span></td><td>{h.failed > 0 ? <span className="tag r">{h.failed}</span> : 0}</td><td><small>{h.created_by}</small></td></tr>)}
-      {!hist.length && <tr><td colSpan="6">Aún no has enviado anuncios.</td></tr>}</tbody></table></div></>)
+    <div className="panel" style={{ marginTop: 16 }}><b>Historial</b><table><thead><tr><th>Fecha</th><th>Anuncio</th><th>Audiencia</th><th>Enviados</th><th>Fallidos</th><th>Por</th><th></th></tr></thead><tbody>
+      {hist.map(h => <tr key={h.id}><td>{fmtDate(h.created_at)}</td><td><b>{h.title}</b><br /><small>{h.body}</small></td><td>{h.branch_id ? bname(h.branch_id) : 'Todos'}</td><td><span className="tag g">{h.sent}</span></td><td>{h.failed > 0 ? <span className="tag r">{h.failed}</span> : 0}</td><td><small>{h.created_by}</small></td><td><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}><button className="btn g mini" disabled={!!busy} onClick={() => resend(h)}>{busy === 're' + h.id ? 'Enviando...' : '↻ Reenviar'}</button><button className="btn o mini" disabled={!!busy} title="Cargar en el formulario para modificarlo antes de enviar" onClick={() => reuse(h)}>Editar</button></div></td></tr>)}
+      {!hist.length && <tr><td colSpan="7">Aún no has enviado anuncios.</td></tr>}</tbody></table></div></>)
 }

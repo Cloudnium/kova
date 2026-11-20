@@ -9,7 +9,7 @@ export default function Asistente() {
   useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs])
   const data = async () => {
     const d = new Date(); d.setDate(d.getDate() - 29); const sb = supabase.from('sales').select('*').gte('created_at', d.toISOString()).limit(5000), stb = supabase.from('branch_stock').select('*').limit(20000), eb = supabase.from('expenses').select('*').gte('created_at', d.toISOString()).limit(5000)
-    const [s, st, p, e] = await Promise.all([scope ? sb.eq('branch_id', scope) : sb, scope ? stb.eq('branch_id', scope) : stb, supabase.from('products').select('id,name,price').eq('active', true), scope ? eb.eq('branch_id', scope) : eb])
+    const [s, st, p, e] = await Promise.all([scope ? sb.eq('branch_id', scope) : sb, scope ? stb.eq('branch_id', scope) : stb, supabase.from('products').select('*').eq('active', true).neq('kind', 'combo'), scope ? eb.eq('branch_id', scope) : eb])
     const sales = s.data || [], ok = sales.filter(x => x.status === 'completado'), today = ok.filter(x => dk(x.created_at) === dk(new Date())), sum = a => a.reduce((t, x) => t + +x.total, 0)
     const tops = {}; ok.forEach(x => (x.items || []).forEach(i => tops[i.name] = (tops[i.name] || 0) + i.qty))
     const stock = {}; (st.data || []).forEach(x => stock[x.product_id] = (stock[x.product_id] || 0) + x.stock)

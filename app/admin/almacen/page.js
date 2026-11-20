@@ -6,7 +6,7 @@ import { useApp, useScope } from '../../../lib/branch'
 import { useTable, useTableProducts, useStockMap, Head, Err, Modal, AllBanner } from '../../../lib/ui'
 export default function Almacen() {
   const { branch, branches, allBranches } = useApp(), scope = useScope()
-  const [rows, , e0] = useTableProducts(), [sm, load, e1] = useStockMap(), [moves, loadMv] = useTable('stock_moves', 'created_at', 60, true)
+  const [allRows, , e0] = useTableProducts(), rows = allRows.filter(p => p.kind !== 'combo'), [sm, load, e1] = useStockMap(), [moves, loadMv] = useTable('stock_moves', 'created_at', 60, true)
   const [qty, setQty] = useState({}), [q, setQ] = useState(''), [err, setErr] = useState(''), [tr, setTr] = useState(null)
   const S = p => sm[p.id] || { stock: 0, wh: 0, by: {} }
   const mv = async (p, kind) => {
