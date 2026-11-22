@@ -6,7 +6,7 @@ import { useTable, useStockMap, Modal, Head, Err } from '../../../lib/ui'
 import { compressImage, upload, publicUrl, rnd } from '../../../lib/images'
 import { Ico } from '../../../lib/icons'
 import { MovesModal } from '../../../lib/movesui'
-const E = { name: '', sku: '', category: 'Ron', price: '', old_price: '', description: '', min_stock: 5, stock: 0, stock_warehouse: 0, image_url: '', cost: '', is_pack: false, active: true }
+const E = { name: '', sku: '', category: 'OTROS', price: '', old_price: '', description: '', min_stock: 5, stock: 0, stock_warehouse: 0, image_url: '', cost: '', is_pack: false, active: true }
 const LEGACY = ['id', 'created_at', 'stock', 'stock_warehouse']
 export default function Productos() {
   const { branch, allBranches } = useApp(), scope = useScope()
