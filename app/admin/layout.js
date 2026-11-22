@@ -12,7 +12,7 @@ import { StockAlert, fetchLowStock, alertSeen, markSeen, clearSeen } from '../..
 
 // [ruta, etiqueta, icono, solo administrador]
 const MENU = [['PRINCIPAL', [['', 'Dashboard', 'home'], ['ventas', 'Ventas', 'cart'], ['pedidos', 'Pedidos web', 'bag']]],
-  ['GESTIÓN', [['productos', 'Productos', 'box'], ['combos', 'Combos y promos', 'tag', 1], ['clientes', 'Clientes', 'users'], ['usuarios', 'Usuarios', 'usercog', 1], ['cajas', 'Cajas', 'till'], ['almacen', 'Almacén', 'store']]],
+  ['GESTIÓN', [['productos', 'Productos', 'box'], ['fotos', 'Fotos', 'eye', 1], ['combos', 'Combos y promos', 'tag', 1], ['clientes', 'Clientes', 'users'], ['usuarios', 'Usuarios', 'usercog', 1], ['cajas', 'Cajas', 'till'], ['almacen', 'Almacén', 'store']]],
   ['SEDES', [['sedes', 'Sedes', 'building', 1]]],
   ['DOCUMENTOS', [['comprobantes', 'Comprobantes', 'file'], ['egresos', 'Egresos', 'truck'], ['reportes', 'Reportes', 'chart']]],
   ['HERRAMIENTAS', [['asistente', 'Asistente', 'chat'], ['anuncios', 'Anuncios', 'bell', 1], ['impresion', 'Impresión', 'printer'], ['backup', 'Backup', 'db', 1], ['auditoria', 'Auditoría', 'audit', 1], ['config', 'Configuración', 'gear', 1]]]]
@@ -82,7 +82,7 @@ export default function AdminLayout({ children }) {
   }, [])
   // sede elegida (si no hay una válida, se pregunta de nuevo)
   useEffect(() => {
-    if (!prof) return
+    if (!prof || prof.role === 'marketing') return
     const s = getSede(); if (s === 'all' ? branches.length > 1 : branches.some(b => b.id === s)) setBranchId(s); else r.replace('/seleccionar-sede')
   }, [prof, branches])
   useEffect(() => { reloadBox(); refreshPending() }, [reloadBox, refreshPending])
@@ -118,13 +118,15 @@ export default function AdminLayout({ children }) {
     return () => { supabase.removeChannel(ch); clearInterval(i); window.removeEventListener('pointerdown', unlock) }
   }, [user, refreshPending])
   useEffect(() => { const f = e => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenu(false) }; document.addEventListener('pointerdown', f); return () => document.removeEventListener('pointerdown', f) }, [])
-  useEffect(() => { if (prof && !isAdmin && ADMIN_ONLY.includes(path.split('/')[2])) r.replace('/admin') }, [path, prof])
+  const isMkt = prof?.role === 'marketing'
+  useEffect(() => { if (isMkt && path !== '/admin/fotos') r.replace('/admin/fotos'); else if (prof && !isAdmin && !isMkt && ADMIN_ONLY.includes(path.split('/')[2])) r.replace('/admin') }, [path, prof])
 
   const pick = id => { setSede(id); setBranchId(id); setMenu(false); setBox(undefined) }
   const openBox = async () => { setBe(''); const x = await rpc('open_cash', { p_branch: branchId, p_name: bf.name, p_amount: +bf.amt || 0 }); if (x.error) return setBe(x.error); setBoxM(false); reloadBox() }
   const ctx = useMemo(() => ({ user, prof, isAdmin, branches, allBranches: all, branchId, branch, setBranch: pick, settings, reloadSettings: loadSettings, box, reloadBox, askBox: () => setBoxM(true), pending, refreshPending }),
     [user, prof, isAdmin, branches, all, branchId, branch, settings, box, pending, loadSettings, reloadBox, refreshPending])
 
+  if (isMkt && user) return <AppCtx.Provider value={ctx}><div style={{ minHeight: '100vh' }}><header className="mkt-top"><img src={settings.logo_url || '/logo.png'} alt="" /><b>Marketing</b><span style={{ marginLeft: 'auto' }}>{prof.name || user.email}</span><button className="btn o mini" onClick={async () => { await supabase.auth.signOut(); r.push('/login') }}>Salir</button></header><main style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>{path === '/admin/fotos' ? children : null}</main></div></AppCtx.Provider>
   if (!user || !branchId) return <div style={{ padding: 40 }}>{bad || 'Cargando...'} {bad && <Link href="/login" style={{ color: 'var(--red)' }}>Volver al login</Link>}</div>
   const href = s => '/admin' + (s ? '/' + s : '')
   const title = MENU.flatMap(m => m[1]).find(x => href(x[0]) === path)?.[1] || 'Sistema'

@@ -7,7 +7,7 @@ async function guard(req) {
   return p?.role === 'administrador' && p?.active !== false ? a : null
 }
 const no = () => Response.json({ error: 'No autorizado o falta SUPABASE_SERVICE_ROLE_KEY' }, { status: 403 })
-const ROLES = ['administrador', 'trabajador']
+const ROLES = ['administrador', 'trabajador', 'marketing']
 const ids = v => Array.isArray(v) ? v.filter(x => /^[0-9a-f-]{36}$/i.test(x)) : []
 export async function POST(req) {
   const a = await guard(req); if (!a) return no()
@@ -15,7 +15,7 @@ export async function POST(req) {
   if (!ROLES.includes(role)) return Response.json({ error: 'Rol no válido' }, { status: 400 })
   const { data, error } = await a.auth.admin.createUser({ email, password, email_confirm: true })
   if (error) return Response.json({ error: error.message }, { status: 400 })
-  const r = await a.from('profiles').insert({ id: data.user.id, email, name, role, branch_ids: ids(branch_ids) })
+  const r = await a.from('profiles').insert({ id: data.user.id, email, name, role, branch_ids: role === 'marketing' ? [] : ids(branch_ids) })
   if (r.error) return Response.json({ error: r.error.message }, { status: 400 })
   return Response.json({ ok: true })
 }

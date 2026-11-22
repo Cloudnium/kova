@@ -82,3 +82,22 @@ Ejecuta `supabase/schema_v9.sql` (después de v8) y vuelve a desplegar. Menú **
 - **Promociones**: descuento en % o precio promocional sobre productos o combos, con fechas de inicio/fin y/o días de la semana (hora de Lima). Se pueden pausar. Si hay varias vigentes, gana el precio más bajo.
 - El precio final lo calcula siempre la base de datos (POS y pedidos web). En el POS aparecen con etiqueta y filtros «Combos» y «Promos»; en la tienda, en las secciones Combos / Promociones / Ofertas.
 - **Anuncios**: en el historial, «↻ Reenviar» vuelve a enviar el anuncio tal cual y «Editar» lo carga en el formulario.
+
+## Costo e historial de movimientos (schema_v10)
+Ejecuta `supabase/schema_v10.sql` (después de v9). Agrega `products.cost` y guarda en cada movimiento de stock cómo quedó tienda/almacén (antes → después; los movimientos anteriores se muestran sin esa columna).
+- **Productos**: campo «Costo unitario», tarjeta «Valor del inventario (costo)» junto a la de venta, y botón **Historial de movimientos** (filtros por fechas, producto y tipo; Excel y PDF).
+- **Almacén**: botón **Historial de traslados** (Almacén → Tienda, Tienda → Almacén, Entre sedes; por día o rango, búsqueda por nombre; Excel y PDF).
+- Los productos existentes quedan con costo 0: edítalos para cargar el costo.
+
+## Egresos con comprobante, compras, cajas y asistente (schema_v11)
+Ejecuta `supabase/schema_v11.sql` (después de v10; si te salió «invalid configuration parameter name» ejecuta antes `supabase/fix_v10.sql` o vuelve a correr el v10 corregido).
+- **Egresos**: formulario con categoría, comprobante (tipo/serie/número/fecha), proveedor, importe, descripción, foto y «Descontar de mi caja abierta». Pestaña **Compras de insumos**: registra compras con precios; al recibirlas entra stock al almacén y se actualiza el costo.
+- **Cajas del día**: tarjetas con **Ver detalle**, **Ticket** (con logo, 58/80 mm) y **Descargar** (PDF A4 con detalle de ventas).
+- **Productos**: columnas Precio de compra / Precio de venta / Ganancia (S/ y margen) y ganancia potencial.
+- **Asistente KOVA**: guía por temas y preguntas con pasos del sistema, buscador de dudas y datos del negocio.
+
+## Lector de código de barras (Ventas)
+En Ventas, el lector agrega productos al carrito sin hacer clic en nada: el código del producto es su **SKU/código** (campo «Código» en Productos). Pitido y aviso verde/rojo; escanear de nuevo suma 1 unidad. No actúa mientras hay una ventana abierta o escribes en otro campo.
+
+## Rol Marketing y fotos en el POS (schema_v12)
+Ejecuta `supabase/schema_v12.sql` (después de v11) y redespliega. En Usuarios elige el rol **Marketing** (no necesita sedes): al entrar solo ve la pantalla **Fotos** y puede cambiar la foto de productos y combos; no ve ventas, stock, clientes ni configuración. El SQL además cierra un hueco: antes cualquier sesión podía escribir en `products` desde la API; ahora solo el personal (no marketing).

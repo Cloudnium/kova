@@ -6,6 +6,7 @@ import { useStockMap, Seg, Err, AllBanner } from '../../../lib/ui'
 import { printTicket, getPrintCfg } from '../../../lib/tickets'
 import { TicketModal } from '../../../lib/ticketui'
 import { promoPrice } from '../../../lib/promo'
+import { Ico } from '../../../lib/icons'
 
 export default function POS() {
   const { branchId, branch, box, askBox, settings, reloadBox } = useApp(), all = branchId === 'all'
@@ -21,6 +22,34 @@ export default function POS() {
   const add = p => { if (have(p.id) < 1) return; setCart(c => c.find(i => i.id === p.id) ? c.map(i => i.id === p.id ? { ...i, qty: Math.min(i.qty + 1, have(p.id)) } : i) : [...c, { id: p.id, name: p.name, price: p.eff, qty: 1 }]) }
   const setQty = (id, n) => setCart(c => c.map(i => i.id === id ? { ...i, qty: Math.max(1, Math.min(n || 1, have(id))) } : i))
   const sub = cart.reduce((s, i) => s + (byId[i.id]?.eff ?? i.price) * i.qty, 0), total = Math.round(sub * (1 - Math.min(Math.max(disc, 0), 100) / 100) * 100) / 100
+  // Lector de código de barras: escribe muy rápido y termina con Enter. Funciona sin enfocar nada (el código del producto = SKU)
+  const [scan, setScan] = useState(null), live = useRef({}); live.current = { add, prods, pp }
+  useEffect(() => {
+    let buf = '', last = 0, timer
+    const beep = ok => { try { const c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.frequency.value = ok ? 1100 : 220; g.gain.value = .06; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + (ok ? .08 : .25)) } catch (e) {} }
+    const show = (ok, text) => { setScan({ ok, text }); beep(ok); clearTimeout(timer); timer = setTimeout(() => setScan(null), 3000) }
+    const onKey = e => {
+      if (e.ctrlKey || e.altKey || e.metaKey) return
+      const t = e.target, tag = (t?.tagName || '').toLowerCase(), field = tag === 'input' || tag === 'textarea' || tag === 'select' || t?.isContentEditable
+      if (document.querySelector('.modal')) return            // con una ventana abierta no se escanea
+      const now = Date.now()
+      if (e.key === 'Enter') {
+        const code = buf.trim(); buf = ''
+        if (code.length < 3) return
+        if (field) return                                    // escribiendo en un campo (incluida la búsqueda, que ya maneja Enter): no interferir
+        e.preventDefault()
+        const { add, prods, pp } = live.current, p = prods.find(x => x.sku && x.sku.toLowerCase() === code.toLowerCase())
+        if (!p) return show(false, `Código no encontrado: ${code}`)
+        const v = pp.find(x => x.id === p.id) || p; add(v); setQ(''); return show(true, `Agregado: ${p.name}`)
+      }
+      if (e.key.length !== 1) return
+      if (field) { buf = ''; return }
+      if (now - last > 80) buf = ''                          // una persona escribe más lento que un lector
+      last = now; buf += e.key
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => { window.removeEventListener('keydown', onKey, true); clearTimeout(timer) }
+  }, [])
   const onEnter = e => { if (e.key !== 'Enter') return; const ex = prods.find(p => p.sku && p.sku.toLowerCase() === q.trim().toLowerCase()) || (list.length === 1 ? list[0] : null); if (ex) { add(ex); setQ('') } }
   const pickC = id => { setCust(id); const c = custs.find(x => x.id === id); setDoc(c?.doc_number || '') }
   const addC = async () => {
@@ -40,10 +69,11 @@ export default function POS() {
     {all && <AllBanner what="registrar ventas" />}<Err e={e0} />
     {!all && box === null && <p style={{ background: '#fef3c7', padding: 12, borderRadius: 8, marginBottom: 12 }}>Para vender en <b>{branch?.name}</b> primero <button className="rmv" style={{ fontWeight: 700 }} onClick={askBox}>abre tu caja</button>.</p>}
     <div className="pos"><div className="panel"><input ref={sq} placeholder="Buscar producto por nombre o código (Enter para agregar)..." value={q} onChange={e => setQ(e.target.value)} onKeyDown={onEnter} />
-      <small style={{ color: 'var(--ok)' }}>● Stock de esta sede en tiempo real</small>
+      <small style={{ color: 'var(--ok)' }}>● Stock de esta sede en tiempo real · lector de código de barras activo</small>
+      {scan && <div role="status" style={{ padding: '8px 12px', borderRadius: 10, fontWeight: 600, background: scan.ok ? '#ecfdf5' : '#fef2f2', color: scan.ok ? '#047857' : '#b91c1c' }}>{scan.ok ? '✓ ' : '✕ '}{scan.text}</div>}
       <div className="chips">{['Todas', 'Combos', 'Promos', ...CATS].map(c => <button key={c} className={'chip' + (cat === c ? ' on' : '')} onClick={() => setCat(c)}>{c}</button>)}</div>
       <div className="pgrid">{list.map(p => <div key={p.id} className={'card' + (have(p.id) < 1 ? ' off' : '')} onClick={() => !all && add(p)}>
-        {(p.kind === 'combo' || p.promo) && <span className="tagp">{p.promo ? '🏷 ' + p.promo.name : '🎁 Combo'}</span>}<b>{p.name}</b><small style={{ color: 'var(--mut)' }}>{p.kind === 'combo' ? 'Combo' : p.sku}</small><div className="row"><span className="price" style={{ fontSize: 16 }}>{p.eff < +p.price && <s style={{ fontSize: 12, color: 'var(--mut)', fontWeight: 400, marginRight: 4 }}>{money(p.price)}</s>}{money(p.eff)}</span><small>{have(p.id)} unid.</small></div></div>)}</div></div>
+        <div className="pos-img">{p.image_url ? <img src={p.image_url} alt="" loading="lazy" /> : <Ico n="box" s={28} />}</div>{(p.kind === 'combo' || p.promo) && <span className="tagp">{p.promo ? '🏷 ' + p.promo.name : '🎁 Combo'}</span>}<b>{p.name}</b><small style={{ color: 'var(--mut)' }}>{p.kind === 'combo' ? 'Combo' : p.sku}</small><div className="row"><span className="price" style={{ fontSize: 16 }}>{p.eff < +p.price && <s style={{ fontSize: 12, color: 'var(--mut)', fontWeight: 400, marginRight: 4 }}>{money(p.price)}</s>}{money(p.eff)}</span><small>{have(p.id)} unid.</small></div></div>)}</div></div>
       <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><b>Nueva Venta</b>
         <label>Cliente</label><select value={cust} onChange={e => pickC(e.target.value)}><option value="">Cliente Varios</option>{custs.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
         {nc ? <div style={{ display: 'grid', gap: 6 }}><input placeholder="Nombre o razón social" value={nc.name} onChange={e => setNc({ ...nc, name: e.target.value })} /><div className="row"><input placeholder="Celular" value={nc.phone} onChange={e => setNc({ ...nc, phone: e.target.value })} /><input placeholder="DNI / RUC" value={nc.doc} onChange={e => setNc({ ...nc, doc: e.target.value })} /></div>

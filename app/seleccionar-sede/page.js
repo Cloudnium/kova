@@ -19,6 +19,7 @@ export default function SeleccionarSede() {
     if (p.error || b.error) return setErr((p.error || b.error).message + '. ¿Ejecutaste supabase/schema_v5.sql?')
     const prof = p.data, cfg = settingsMap(s.data); applyBrand(cfg.brand_color)
     if (prof.active === false) { await supabase.auth.signOut(); return r.replace('/login') }
+    if (prof.role === 'marketing') return r.replace('/admin/fotos')
     const list = (b.data || []).filter(x => x.active !== false && (prof.role === 'administrador' || (prof.branch_ids || []).includes(x.id)))
     if (list.length === 1) return pick(list[0].id)
     setD({ prof, list, cfg })
