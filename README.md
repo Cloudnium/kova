@@ -101,3 +101,8 @@ En Ventas, el lector agrega productos al carrito sin hacer clic en nada: el cód
 
 ## Rol Marketing y fotos en el POS (schema_v12)
 Ejecuta `supabase/schema_v12.sql` (después de v11) y redespliega. En Usuarios elige el rol **Marketing** (no necesita sedes): al entrar solo ve la pantalla **Fotos** y puede cambiar la foto de productos y combos; no ve ventas, stock, clientes ni configuración. El SQL además cierra un hueco: antes cualquier sesión podía escribir en `products` desde la API; ahora solo el personal (no marketing).
+
+## Dashboard y Reportes rediseñados
+- Gráficos propios en `lib/charts.js` (líneas suaves, barras, dona), sin librerías nuevas ni SQL nuevo.
+- Dashboard: accesos rápidos, 4 KPI con "vs. ayer", ventas de la semana, ventas por categoría, evolución mensual (6 meses), ventas recientes y alertas de stock.
+- Reportes: filtros (tipo, fechas, sede, comprobante, origen, restablecer), 6 KPI, resumen del periodo vs. periodo anterior, utilidad estimada (usa el costo del producto), métodos de pago, top productos y top categorías. Imprimir y Exportar CSV (ventas o egresos).

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { supabase, money, SUPA_OK, getSede, setSede, initials, settingsMap, rpc } from '../../lib/supabase'
+import Assistant from '../../lib/assistant'
 import { Ico } from '../../lib/icons'
 import { AppCtx } from '../../lib/branch'
 import { applyBrand } from '../../lib/brand'
@@ -15,7 +16,7 @@ const MENU = [['PRINCIPAL', [['', 'Dashboard', 'home'], ['ventas', 'Ventas', 'ca
   ['GESTIÓN', [['productos', 'Productos', 'box'], ['fotos', 'Fotos', 'eye', 1], ['combos', 'Combos y promos', 'tag', 1], ['clientes', 'Clientes', 'users'], ['usuarios', 'Usuarios', 'usercog', 1], ['cajas', 'Cajas', 'till'], ['almacen', 'Almacén', 'store']]],
   ['SEDES', [['sedes', 'Sedes', 'building', 1]]],
   ['DOCUMENTOS', [['comprobantes', 'Comprobantes', 'file'], ['egresos', 'Egresos', 'truck'], ['reportes', 'Reportes', 'chart']]],
-  ['HERRAMIENTAS', [['asistente', 'Asistente', 'chat'], ['anuncios', 'Anuncios', 'bell', 1], ['impresion', 'Impresión', 'printer'], ['backup', 'Backup', 'db', 1], ['auditoria', 'Auditoría', 'audit', 1], ['config', 'Configuración', 'gear', 1]]]]
+  ['HERRAMIENTAS', [['anuncios', 'Anuncios', 'bell', 1], ['impresion', 'Impresión', 'printer'], ['backup', 'Backup', 'db', 1], ['auditoria', 'Auditoría', 'audit', 1], ['config', 'Configuración', 'gear', 1]]]]
 const ADMIN_ONLY = MENU.flatMap(m => m[1]).filter(x => x[3]).map(x => x[0])
 const NET = { ok: 'En línea', slow: 'Conexión lenta', down: 'Sin respuesta del servidor', off: 'Sin internet' }
 
@@ -167,6 +168,7 @@ export default function AdminLayout({ children }) {
       <label>Nombre de la caja</label><input value={bf.name} onChange={e => setBf({ ...bf, name: e.target.value })} />
       <label>Monto inicial en efectivo (S/)</label><input type="number" min="0" value={bf.amt} onChange={e => setBf({ ...bf, amt: e.target.value })} />
       <button className="btn g" onClick={openBox}>Abrir caja</button><button className="btn o" onClick={() => setBoxM(false)}>Ahora no</button></Modal>}
+    <Assistant />
     {lowOpen && low.length > 0 && <StockAlert rows={low} label={label} onClose={() => setLowOpen(false)} />}
   </div></AppCtx.Provider>)
 }
