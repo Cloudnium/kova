@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { promoPrice, limaNow } from '../lib/promo'
 
 const PHONE0 = '51922808303'
@@ -24,7 +24,7 @@ export default function Tienda() {
   const [raw, setProds] = useState([]), [promos, setPromos] = useState([]), [cat, setCat] = useState('Todas'), [q, setQ] = useState(''), [cfg, setCfg] = useState({}), [branches, setBranches] = useState([]), [bid, setBid] = useState(null), [stock, setStock] = useState({})
   // Precio con promoción vigente (el servidor vuelve a calcularlo al registrar el pedido)
   const prods = useMemo(() => { const now = limaNow(); return raw.map(p => { const r = promoPrice(p, promos, now); return r.promo ? { ...p, price: r.price, old_price: +p.price, promo: r.promo } : p }) }, [raw, promos])
-  const [cart, setCart] = useState([]), [open, setOpen] = useState(false), [f, setF] = useState({ name: '', phone: '', address: '', notes: '', mode: 'contra_entrega' }), [proof, setProof] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false), [ok, setOk] = useState(null)
+  const [cart, setCart] = useState([]), [open, setOpen] = useState(false), [f, setF] = useState({ name: '', phone: '', notes: '', mode: 'contra_entrega' }), [proof, setProof] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false), [ok, setOk] = useState(null)
   const [sl, setSl] = useState(0), [menu, setMenu] = useState(false), [pv, setPv] = useState(null), PHONE = cfg.whatsapp || PHONE0, [pu, setPu] = useState(null)
   useEffect(() => { registerSW() }, [])
   useEffect(() => { if (!pv) return; const f = e => e.key === 'Escape' && setPv(null); document.addEventListener('keydown', f); return () => document.removeEventListener('keydown', f) }, [pv])
@@ -42,22 +42,38 @@ export default function Tienda() {
   const [guide, setGuide] = useState(false)
   const [trk, setTrk] = useState(null)      // null = cerrado · texto = abierto (con el último pedido ya cargado, si lo hay)
   const openTrk = () => { setMenu(false); setTrk(lastOrder()) }
-  // ubicación GPS del cliente (para saber a dónde llevar el pedido)
-  const [gps, setGps] = useState(null), [gpsBusy, setGpsBusy] = useState(false), [gpsErr, setGpsErr] = useState('')
+  // al tocar el aviso en el celular se abre la tienda con el estado de ese pedido
+  useEffect(() => { try { const c = new URLSearchParams(location.search).get('pedido'); if (c) { setTrk(c.slice(0, 30)); history.replaceState(null, '', location.pathname) } } catch (e) {} }, [])
+  // Ubicación GPS del cliente (obligatoria). Se pide «alta precisión» (chip GPS del celular) y se sigue afinando hasta ~12 s
+  // quedándonos con la lectura más exacta, parecido a «ubicación en tiempo real» de WhatsApp. Si solo hay una ubicación aproximada
+  // (por WiFi/antena/IP, de cientos de metros) se rechaza y se pide activar el GPS.
+  const GPS_OK = 40, GPS_MAX = 100
+  const [gps, setGps] = useState(null), [gpsBusy, setGpsBusy] = useState(false), [gpsErr, setGpsErr] = useState(''), [gpsLive, setGpsLive] = useState(null)
+  const gpsW = useRef(null), gpsT = useRef(null)
   const mapUrl = g => `https://www.google.com/maps?q=${g.lat},${g.lng}`
+  const stopGps = () => { if (gpsW.current != null) { try { navigator.geolocation.clearWatch(gpsW.current) } catch (e) {} gpsW.current = null } clearTimeout(gpsT.current) }
+  useEffect(() => stopGps, [])
   const getGps = () => {
     setGpsErr(''); if (!navigator.geolocation) return setGpsErr('Tu navegador no permite obtener la ubicación.')
-    setGpsBusy(true)
-    navigator.geolocation.getCurrentPosition(
-      p => { setGps({ lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), acc: Math.round(p.coords.accuracy) }); setGpsBusy(false) },
-      e => { setGpsBusy(false); setGpsErr(e.code === 1 ? 'Permiso denegado. Permite la ubicación de este sitio en tu navegador e inténtalo otra vez.' : e.code === 3 ? 'Tardó demasiado. Activa el GPS e inténtalo de nuevo.' : 'No se pudo obtener tu ubicación.') },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 })
+    stopGps(); setGpsBusy(true); setGpsLive(null)
+    let best = null
+    const finish = () => {
+      stopGps(); setGpsBusy(false); setGpsLive(null)
+      if (!best) return setGpsErr('No se pudo obtener tu ubicación. Activa el GPS e inténtalo de nuevo.')
+      if (best.acc > GPS_MAX) { setGps(null); return setGpsErr(`Tu ubicación es poco precisa (±${best.acc} m) y parece venir del WiFi o de la antena, no del GPS. Activa el GPS del celular (ubicación de «alta precisión»), sal a un lugar abierto e inténtalo otra vez.`) }
+      setGps(best)
+    }
+    gpsW.current = navigator.geolocation.watchPosition(
+      p => { const c = { lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), acc: Math.round(p.coords.accuracy) }; if (!best || c.acc < best.acc) best = c; setGpsLive(best.acc); if (c.acc <= GPS_OK) finish() },
+      e => { if (best) return finish(); stopGps(); setGpsBusy(false); setGpsLive(null); setGpsErr(e.code === 1 ? 'Permiso denegado. Permite la ubicación de este sitio en tu navegador (candado de la barra de direcciones) e inténtalo otra vez.' : e.code === 3 ? 'Tardó demasiado. Activa el GPS e inténtalo de nuevo.' : 'No se pudo obtener tu ubicación. Activa el GPS e inténtalo de nuevo.') },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 })
+    gpsT.current = setTimeout(finish, 12000)
   }
   // arma el mensaje con la lista del pedido y abre WhatsApp (no registra el pedido en el sistema)
   const waOrder = () => {
     const n = x => x.trim()
     const msg = [WA_MSG, '', ...cart.map(i => `• ${i.qty} x ${i.name} — ${money(i.price * i.qty)}`), '', `Total: ${money(total)}`, '',
-      n(f.name) ? `Nombre: ${n(f.name)}` : null, n(f.phone) ? `Celular: ${n(f.phone)}` : null, n(f.address) ? `Dirección: ${n(f.address)}` : null, n(f.notes) ? `Referencia: ${n(f.notes)}` : null,
+      n(f.name) ? `Nombre: ${n(f.name)}` : null, n(f.phone) ? `Celular: ${n(f.phone)}` : null, n(f.notes) ? `Referencia: ${n(f.notes)}` : null,
       gps ? `Ubicación: ${mapUrl(gps)}` : null, branch ? `Sede: ${branch.name}` : null, `Pago: ${f.mode === 'pagar_ahora' ? 'Yape' : 'Contra entrega'}`].filter(l => l !== null).join('\n')
     window.open(`https://wa.me/${PHONE}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener')
   }
@@ -81,13 +97,13 @@ export default function Tienda() {
   const rm = id => setCart(c => c.filter(i => i.id !== id))
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const add = p => setCart(c => c.find(i => i.id === p.id) ? c.map(i => i.id === p.id ? { ...i, qty: Math.min(i.qty + 1, st(p.id)) } : i) : [...c, { id: p.id, name: p.name, price: +p.price, qty: 1 }])
-  const bad = !cart.length || f.name.trim().length < 2 || f.phone.replace(/\D/g, '').length < 6 || (f.mode === 'pagar_ahora' && !proof)
+  const bad = !cart.length || f.name.trim().length < 2 || f.phone.replace(/\D/g, '').length < 6 || !gps || (f.mode === 'pagar_ahora' && !proof)
   const order = async () => {
     setErr(''); setBusy(true)
     try {
       let path = null
       if (f.mode === 'pagar_ahora') { const blob = await compressImage(proof, { max: 1400 }); path = await upload('proofs', rnd() + '.webp', blob, 'image/webp') }
-      const x = await rpc('create_web_order', { p_branch: bid, p_name: f.name, p_phone: f.phone, p_address: f.address || null, p_notes: [f.notes.trim(), gps && 'Ubicación GPS: ' + mapUrl(gps)].filter(Boolean).join(' | ') || null, p_items: cart.map(i => ({ id: i.id, qty: i.qty })), p_pay_mode: f.mode, p_proof: path })
+      const x = await rpc('create_web_order', { p_branch: bid, p_name: f.name, p_phone: f.phone, p_notes: f.notes.trim() || null, p_items: cart.map(i => ({ id: i.id, qty: i.qty })), p_pay_mode: f.mode, p_proof: path, p_lat: gps.lat, p_lng: gps.lng, p_acc: gps.acc })
       if (x.error) { setBusy(false); loadStock(); return setErr(x.error) }
       const o = x.data, sale = { ...o, source: 'web', status: 'pendiente', voucher: 'Nota de Venta' }
       rememberOrder(o.order_number); setOk({ sale, ctx: { settings: cfg, branch: o.branch } }); setGps(null); setCart([]); setProof(null); setOpen(false); setF({ ...f, notes: '' }); loadStock()
@@ -165,12 +181,12 @@ export default function Tienda() {
         {!cart.length && <p>Agrega licores para comenzar.</p>}</div>
       <input placeholder="Tu nombre *" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} />
       <input placeholder="Celular *" inputMode="tel" value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} />
-      <input placeholder="Dirección de entrega" value={f.address} onChange={e => setF({ ...f, address: e.target.value })} />
-      <div className="gpsf"><span className="gpsf-t">{gps ? <>📍 <b>{gps.lat}, {gps.lng}</b> <small>(±{gps.acc} m)</small></> : 'Ubicación en tiempo real'}</span>
+      <div className={'gpsf' + (!gps ? ' req' : '')}><span className="gpsf-t">{gps ? <>📍 <b>{gps.lat}, {gps.lng}</b> <small>(±{gps.acc} m)</small></> : gpsBusy ? <>Buscando GPS…{gpsLive != null && <small> ±{gpsLive} m</small>}</> : 'Ubicación en tiempo real *'}</span>
         {gps && <a href={mapUrl(gps)} target="_blank" rel="noopener" className="gpsf-l">Ver mapa</a>}
         <button type="button" className="gpsf-b" disabled={gpsBusy} onClick={getGps}>{gpsBusy ? 'Buscando…' : gps ? 'Actualizar' : '📍 Usar mi ubicación'}</button></div>
+      {!gps && !gpsErr && <small style={{ color: '#777', marginTop: -6 }}>Obligatoria: con tu ubicación GPS te llevamos el pedido. Actívala en tu celular y permite el acceso cuando el navegador lo pida.</small>}
       {gpsErr && <small style={{ color: '#b91c1c', marginTop: -6 }}>⚠ {gpsErr}</small>}
-      <input placeholder="Referencia o comentario (opcional)" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} />
+      <input placeholder="Referencia o comentario (opcional) · ej: casa azul, 2do piso" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} />
       <b style={{ fontSize: 14 }}>Forma de pago</b>
       <button type="button" style={chip(f.mode === 'contra_entrega')} onClick={() => setF({ ...f, mode: 'contra_entrega' })}><b>Pago contra entrega</b><br /><small>Pagas cuando recibes tu pedido</small></button>
       <button type="button" style={chip(f.mode === 'pagar_ahora')} onClick={() => setF({ ...f, mode: 'pagar_ahora' })}><b>Pagar ahora con Yape</b><br /><small>Escanea el QR y adjunta tu captura</small></button>
@@ -183,8 +199,8 @@ export default function Tienda() {
       {err && <p style={{ color: '#b91c1c', background: '#fee2e2', padding: 10, borderRadius: 8 }}>⚠ {err}</p>}
       <div className="row"><b>Total</b><span className="price">{money(total)}</span></div>
       <button className="btn" disabled={bad || busy} onClick={order}>{busy ? 'Enviando...' : 'Enviar pedido'}</button>
-      <button type="button" className="wabtn" disabled={!cart.length} onClick={waOrder}><img src="/whatsapp.png" alt="" width="22" height="22" /> Hacer pedido por WhatsApp</button>
-      <small style={{ color: '#777', textAlign: 'center' }}>Abre WhatsApp con tu lista de productos para que nos escribas directamente.</small>
+      <button type="button" className="wabtn" disabled={!cart.length || !gps} onClick={waOrder}><img src="/whatsapp.png" alt="" width="22" height="22" /> Hacer pedido por WhatsApp</button>
+      <small style={{ color: '#777', textAlign: 'center' }}>Abre WhatsApp con tu lista de productos y tu ubicación para que nos escribas directamente.</small>
     </aside>}
     {ok && <div className="modal" onClick={() => setOk(null)}><div className="mbox" style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
       <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#16a34a', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 34, margin: '0 auto' }}>✓</div>

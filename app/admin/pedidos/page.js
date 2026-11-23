@@ -4,12 +4,14 @@ import { supabase, money, fmtDate, rpc } from '../../../lib/supabase'
 import { useApp, useScope } from '../../../lib/branch'
 import { Head, Err, Modal, Seg } from '../../../lib/ui'
 import { TicketModal } from '../../../lib/ticketui'
+import { notifyOrder } from '../../../lib/ordernotify'
 
 const TABS = [['pendiente', 'Por confirmar'], ['completado', 'Confirmados'], ['anulado', 'Rechazados / anulados'], ['', 'Todos']]
+const map = o => o.geo_lat != null && o.geo_lng != null ? `https://www.google.com/maps?q=${o.geo_lat},${o.geo_lng}` : null
 const wa = p => { const d = String(p || '').replace(/\D/g, ''); return d ? 'https://wa.me/' + (d.length === 9 ? '51' + d : d) : null }
 export default function Pedidos() {
   const { allBranches, branches, settings, refreshPending, reloadBox, box, branchId, askBox } = useApp(), scope = useScope()
-  const [rows, setRows] = useState([]), [tab, setTab] = useState('pendiente'), [q, setQ] = useState(''), [err, setErr] = useState(''), [sel, setSel] = useState(null), [done, setDone] = useState(null)
+  const [rows, setRows] = useState([]), [tab, setTab] = useState('pendiente'), [q, setQ] = useState(''), [err, setErr] = useState(''), [sel, setSel] = useState(null), [done, setDone] = useState(null), [note, setNote] = useState('')
   const [f, setF] = useState({ voucher: 'Nota de Venta', doc: '', paid: false, payment: 'Efectivo' }), [stk, setStk] = useState({}), [proof, setProof] = useState(''), [busy, setBusy] = useState(false), [e2, setE2] = useState('')
   const bname = id => allBranches.find(b => b.id === id)?.name || ''
   // Aceptar y cobrar pedidos web exige TU caja abierta en la sede del pedido (el servidor también lo valida)
@@ -28,26 +30,28 @@ export default function Pedidos() {
     supabase.from('branch_stock').select('product_id,stock').eq('branch_id', o.branch_id).in('product_id', ids).then(r => setStk(Object.fromEntries((r.data || []).map(x => [x.product_id, x.stock]))))
     if (o.payment_proof) { const u = await supabase.storage.from('proofs').createSignedUrl(o.payment_proof, 3600); setProof(u.data?.signedUrl || '') }
   }
+  // avisa al cliente por notificación push (si activó los avisos de su pedido) y lo muestra al personal
+  const tell = async id => { const m = await notifyOrder(id); if (m) { setNote(m); setTimeout(() => setNote(''), 6000) } }
   const after = (data, msg) => { setSel(null); load(); refreshPending(); reloadBox(); if (msg) setDone(data) }
   const confirm = async () => {
     setBusy(true); setE2(''); const x = await rpc('confirm_web_order', { p_id: sel.id, p_voucher: f.voucher, p_doc: f.doc.trim() || null, p_paid: f.paid, p_payment: f.payment }); setBusy(false)
-    if (x.error) return setE2(x.error); after(x.data, true)
+    if (x.error) return setE2(x.error); tell(sel.id); after(x.data, true)
   }
-  const reject = async () => { const why = prompt('Motivo del rechazo (opcional):'); if (why === null) return; const x = await rpc('reject_web_order', { p_id: sel.id, p_reason: why }); if (x.error) return setE2(x.error); after() }
-  const act = async (o, a) => { if (a === 'paid' && !boxOk(o)) return setErr(`Para registrar el cobro abre tu caja en ${bname(o.branch_id)}` + (o.branch_id === branchId ? ' (botón «Abrir mi caja» arriba, en Cajas).' : ': elige esa sede en la barra superior y abre tu caja.')); const x = await rpc('mark_order', { p_id: o.id, p_action: a }); if (x.error) return setErr(x.error + (a === 'on_the_way' && /Acción no válida/.test(x.error) ? ' · ¿Ejecutaste schema_v15_estado_pedido.sql?' : '')); load() }
-  const annul = async o => { if (!confirm2(`¿Anular ${o.number}? El stock volverá a la sede.`)) return; const x = await rpc('annul_sale', { p_id: o.id }); if (x.error) return setErr(x.error); load(); refreshPending() }
+  const reject = async () => { const why = prompt('Motivo del rechazo (opcional):'); if (why === null) return; const x = await rpc('reject_web_order', { p_id: sel.id, p_reason: why }); if (x.error) return setE2(x.error); tell(sel.id); after() }
+  const act = async (o, a) => { if (a === 'paid' && !boxOk(o)) return setErr(`Para registrar el cobro abre tu caja en ${bname(o.branch_id)}` + (o.branch_id === branchId ? ' (botón «Abrir mi caja» arriba, en Cajas).' : ': elige esa sede en la barra superior y abre tu caja.')); const x = await rpc('mark_order', { p_id: o.id, p_action: a }); if (x.error) return setErr(x.error + (a === 'on_the_way' && /Acción no válida/.test(x.error) ? ' · ¿Ejecutaste schema_v15_estado_pedido.sql?' : '')); if (a !== 'paid') tell(o.id); load() }
+  const annul = async o => { if (!confirm2(`¿Anular ${o.number}? El stock volverá a la sede.`)) return; const x = await rpc('annul_sale', { p_id: o.id }); if (x.error) return setErr(x.error); tell(o.id); load(); refreshPending() }
   const confirm2 = m => window.confirm(m)
   const lack = sel && (sel.items || []).some(i => (stk[i.id] ?? 0) < i.qty), needDoc = f.voucher === 'Factura' && !/^\d{11}$/.test(f.doc.trim())
   const st = s => s.status === 'pendiente' ? <span className="tag y">Por confirmar</span> : s.status === 'anulado' ? <span className="tag r">{s.reject_reason ? 'Rechazado' : 'Anulado'}</span>
     : <><span className="tag g">Confirmado</span> <span className={'tag ' + (s.paid ? 'g' : 'y')}>{s.paid ? 'Cobrado' : 'Por cobrar'}</span> <span className={'tag' + (s.delivery_status === 'en_camino' ? ' y' : '')}>{s.delivery_status === 'entregado' ? 'Entregado' : s.delivery_status === 'en_camino' ? 'En camino' : 'Por entregar'}</span></>
-  return (<><Head t="Pedidos web" s="Confirma los pedidos de la tienda online. El stock solo se descuenta cuando confirmas." /><Err e={err} />
+  return (<><Head t="Pedidos web" s="Confirma los pedidos de la tienda online. El stock solo se descuenta cuando confirmas." /><Err e={err} />{note && <p style={{ background: '#e8f7ee', color: '#166534', padding: 10, borderRadius: 8, margin: '0 0 12px' }}>{note}</p>}
     <div className="kpis"><div className="kpi" style={{ borderLeftColor: '#f59e0b' }}><span>Por confirmar</span><b>{rows.filter(s => s.status === 'pendiente').length}</b></div>
       <div className="kpi"><span>Confirmados (por cobrar)</span><b>{rows.filter(s => s.status === 'completado' && !s.paid).length}</b></div><div className="kpi" style={{ borderLeftColor: 'var(--ok)' }}><span>Por entregar</span><b>{rows.filter(s => s.status === 'completado' && s.delivery_status !== 'entregado').length}</b></div></div>
     <div className="panel"><div className="tabs">{TABS.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
       <input placeholder="Buscar por pedido, cliente o celular..." value={q} onChange={e => setQ(e.target.value)} style={{ marginBottom: 12 }} />
       <table><thead><tr><th>Pedido</th><th>Fecha</th><th>Cliente</th>{!scope && <th>Sede</th>}<th>Pago</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
         {list.map(s => <tr key={s.id}><td><b>{s.order_number}</b>{s.number && <><br /><small>{s.number}</small></>}</td><td>{fmtDate(s.created_at)}</td>
-          <td>{s.customer_name}<br />{wa(s.phone) ? <a href={wa(s.phone)} target="_blank" style={{ color: 'var(--ok)' }}><small>💬 {s.phone}</small></a> : <small>{s.phone}</small>}</td>{!scope && <td>{bname(s.branch_id)}</td>}
+          <td>{s.customer_name}<br />{wa(s.phone) ? <a href={wa(s.phone)} target="_blank" style={{ color: 'var(--ok)' }}><small>💬 {s.phone}</small></a> : <small>{s.phone}</small>}{map(s) && <><br /><a href={map(s)} target="_blank" rel="noopener" style={{ color: 'var(--red)' }}><small>📍 Ver ubicación</small></a></>}</td>{!scope && <td>{bname(s.branch_id)}</td>}
           <td>{s.pay_mode === 'pagar_ahora' ? <span className="tag g">Yape{s.payment_proof ? ' · con foto' : ''}</span> : <span className="tag">Contra entrega</span>}</td><td><b>{money(s.total)}</b></td><td>{st(s)}</td>
           <td style={{ whiteSpace: 'nowrap' }}>{s.status === 'pendiente' && <button className="btn mini" onClick={() => open(s)}>Revisar y confirmar</button>}
             {s.status === 'completado' && <><button className="chip" onClick={() => setDone(s)}>🖨 Ticket</button> {!s.paid && <button className="chip" onClick={() => act(s, 'paid')}>Marcar cobrado</button>} {s.delivery_status !== 'entregado' && s.delivery_status !== 'en_camino' && <button className="chip" onClick={() => act(s, 'on_the_way')}>🛵 En camino</button>} {s.delivery_status !== 'entregado' && <button className="chip" onClick={() => act(s, 'delivered')}>Entregado</button>} <button className="chip" onClick={() => annul(s)}>Anular</button></>}
@@ -55,7 +59,7 @@ export default function Pedidos() {
         {!list.length && <tr><td colSpan="8">No hay pedidos en esta vista.</td></tr>}</tbody></table></div>
     {sel && <Modal wide title={`Pedido ${sel.order_number} · ${bname(sel.branch_id)}`} onClose={() => setSel(null)}>
       <div className="fgrid" style={{ alignItems: 'start' }}><div><small>Cliente</small><br /><b>{sel.customer_name}</b><br />{sel.phone}</div><div><small>Fecha</small><br />{fmtDate(sel.created_at)}</div><div><small>Forma de pago</small><br /><b>{sel.pay_mode === 'pagar_ahora' ? 'Pagó con Yape' : 'Contra entrega'}</b></div></div>
-      {(sel.address || sel.notes) && <p>{sel.address && <>📍 {sel.address}<br /></>}{sel.notes && <>📝 {sel.notes.split(/(https?:\/\/\S+)/).map((t, i) => /^https?:/.test(t) ? <a key={i} href={t} target="_blank" rel="noopener" style={{ color: 'var(--red)', textDecoration: 'underline' }}>Abrir en el mapa</a> : t)}</>}</p>}
+      {(map(sel) || sel.address || sel.notes) && <p>{map(sel) && <>📍 <a href={map(sel)} target="_blank" rel="noopener" style={{ color: 'var(--red)', textDecoration: 'underline', fontWeight: 600 }}>Abrir ubicación GPS en el mapa</a> <small>({sel.geo_lat}, {sel.geo_lng}{sel.geo_acc != null ? ` · ±${sel.geo_acc} m` : ''})</small><br /></>}{sel.address && <>📍 {sel.address}<br /></>}{sel.notes && <>📝 Referencia: {sel.notes.split(/(https?:\/\/\S+)/).map((t, i) => /^https?:/.test(t) ? <a key={i} href={t} target="_blank" rel="noopener" style={{ color: 'var(--red)', textDecoration: 'underline' }}>Abrir en el mapa</a> : t)}</>}</p>}
       <table><thead><tr><th>Producto</th><th>Cant.</th><th>Disponible en sede</th><th>Importe</th></tr></thead><tbody>
         {(sel.items || []).map((i, k) => <tr key={k}><td>{i.name}</td><td>{i.qty}</td><td>{sel.status !== 'pendiente' ? '-' : (stk[i.id] ?? 0) < i.qty ? <span className="warn">Solo {stk[i.id] ?? 0}</span> : <span className="tag g">{stk[i.id]}</span>}</td><td>{money(i.qty * i.price)}</td></tr>)}
         <tr><td colSpan="3"><b>TOTAL</b></td><td><b>{money(sel.total)}</b></td></tr></tbody></table>
