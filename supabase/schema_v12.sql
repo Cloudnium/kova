@@ -28,7 +28,8 @@ begin
   select email into v_email from profiles where id = auth.uid() and coalesce(active, true);
   if v_email is null then raise exception 'Sesión no válida'; end if;
   if not (is_admin() or is_marketing()) then raise exception 'No tienes permiso para cambiar fotos'; end if;
-  if coalesce(p_url, '') <> '' and p_url !~ '^https?://[^ ]{5,900}$' then raise exception 'Dirección de imagen no válida'; end if;
+  -- OJO: PostgreSQL no admite cuantificadores > 255 en regex ({5,900} daba "invalid repetition count(s)"); el largo se valida aparte
+  if coalesce(p_url, '') <> '' and (p_url !~ '^https?://[^ ]+$' or length(p_url) not between 10 and 900) then raise exception 'Dirección de imagen no válida'; end if;
   update products set image_url = nullif(p_url, '') where id = p_id returning name into v_name;
   if v_name is null then raise exception 'Producto no encontrado'; end if;
   insert into audit_log(user_email, action, detail) values (v_email, 'Foto de producto cambiada', v_name);

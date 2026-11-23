@@ -99,6 +99,9 @@ Ejecuta `supabase/schema_v11.sql` (después de v10; si te salió «invalid confi
 ## Lector de código de barras (Ventas)
 En Ventas, el lector agrega productos al carrito sin hacer clic en nada: el código del producto es su **SKU/código** (campo «Código» en Productos). Pitido y aviso verde/rojo; escanear de nuevo suma 1 unidad. No actúa mientras hay una ventana abierta o escribes en otro campo.
 
+## Corrección de fotos de Marketing (schema_v14_fix_fotos)
+Si Marketing veía «invalid regular expression: invalid repetition count(s)» al subir/cambiar una foto, ejecuta `supabase/schema_v14_fix_fotos.sql` en el SQL Editor de Supabase (no requiere redespliegue). PostgreSQL no admite cuantificadores mayores a 255 en un regex.
+
 ## Rol Marketing y fotos en el POS (schema_v12)
 Ejecuta `supabase/schema_v12.sql` (después de v11) y redespliega. En Usuarios elige el rol **Marketing** (no necesita sedes): al entrar solo ve la pantalla **Fotos** y puede cambiar la foto de productos y combos; no ve ventas, stock, clientes ni configuración. El SQL además cierra un hueco: antes cualquier sesión podía escribir en `products` desde la API; ahora solo el personal (no marketing).
 
