@@ -59,7 +59,7 @@ export default function Tienda() {
     window.open(`https://wa.me/${PHONE}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener')
   }
   const copyLink = async () => { try { await navigator.clipboard.writeText(location.href); setPu('copied'); setTimeout(() => setPu(null), 4000) } catch (e) { setPu(null) } }
-  const enablePu = async () => { try { await subscribeCustomer(bid); setPu('ok'); setTimeout(() => setPu(null), 5000) } catch (e) { dismissPu() } }
+  const [puErr, setPuErr] = useState(''), enablePu = async () => { try { setPuErr(''); await subscribeCustomer(bid); setPu('ok'); setTimeout(() => setPu(null), 5000) } catch (e) { if (e.message === 'denied') return dismissPu(); setPuErr(e.message || 'Error desconocido'); setPu('fail') } }
   useEffect(() => { const t = setInterval(() => setSl(i => (i + 1) % SLIDES.length), 6000); return () => clearInterval(t) }, [sl])
   useEffect(() => { (async () => {
     const [p, b, s, pr] = await Promise.all([supabase.from('products').select('*').order('name'), supabase.from('branches').select('*').order('created_at'), supabase.from('settings').select('*'), supabase.from('promotions').select('*')])
@@ -190,10 +190,11 @@ export default function Tienda() {
     {pu && <div className="pushbar" role="dialog" aria-label="Notificaciones">
       <div style={{ fontSize: 26 }}>{pu === 'ok' || pu === 'copied' ? '✅' : '🔔'}</div>
       <div style={{ flex: 1 }}>{pu === 'ok' ? <b>¡Listo! Te avisaremos de nuestras ofertas.</b> : pu === 'copied' ? <b>Enlace copiado. Pégalo en Chrome o Safari.</b>
+        : pu === 'fail' ? <><b>No pudimos activar los avisos</b><br /><small>{puErr}</small></>
         : pu === 'ios' ? <><b>Instala KOVA en tu iPhone para recibir ofertas</b><br /><small>Es gratis y toma 10 segundos.</small></>
         : pu === 'inapp' ? <><b>Abre KOVA en tu navegador</b><br /><small>Desde esta app no se pueden activar los avisos. Ábrelo en Chrome o Safari.</small></>
         : <><b>¿Te avisamos de ofertas y novedades?</b><br /><small>Recibe promociones de KOVA en tu celular o computadora. Puedes desactivarlo cuando quieras.</small></>}</div>
-      {pu === 'ask' && <button className="btn" onClick={enablePu}>Activar</button>}{pu === 'ios' && <button className="btn" onClick={() => setGuide(true)}>Cómo hacerlo</button>}{pu === 'inapp' && <button className="btn" onClick={copyLink}>Copiar enlace</button>}{pu !== 'ok' && pu !== 'copied' && <button className="btn o" onClick={dismissPu}>Ahora no</button>}</div>}
+      {pu === 'ask' && <button className="btn" onClick={enablePu}>Activar</button>}{pu === 'fail' && <button className="btn" onClick={enablePu}>Reintentar</button>}{pu === 'ios' && <button className="btn" onClick={() => setGuide(true)}>Cómo hacerlo</button>}{pu === 'inapp' && <button className="btn" onClick={copyLink}>Copiar enlace</button>}{pu !== 'ok' && pu !== 'copied' && <button className="btn o" onClick={dismissPu}>Ahora no</button>}</div>}
     {guide && <div className="modal" onClick={() => setGuide(false)}><div className="mbox" onClick={e => e.stopPropagation()}><div className="row"><b>Instalar KOVA en tu iPhone</b><button className="btn o" onClick={() => setGuide(false)}>✕</button></div>
       <ol style={{ paddingLeft: 20, lineHeight: 1.7, margin: 0 }}><li>Abre esta página en <b>Safari</b>.</li><li>Toca el botón <b>Compartir</b> <span style={{ fontSize: 18 }}>⬆️</span> (barra inferior).</li><li>Elige <b>«Añadir a pantalla de inicio»</b> y toca <b>Añadir</b>.</li><li>Abre <b>KOVA desde tu pantalla de inicio</b> y toca <b>Activar</b> en el aviso.</li></ol>
       <small style={{ color: 'var(--mut)' }}>Requiere iOS 16.4 o superior. Apple solo permite notificaciones a las webs instaladas así.</small><button className="btn" onClick={() => { setGuide(false); dismissPu() }}>Entendido</button></div></div>}

@@ -99,6 +99,10 @@ Ejecuta `supabase/schema_v11.sql` (después de v10; si te salió «invalid confi
 ## Lector de código de barras (Ventas)
 En Ventas, el lector agrega productos al carrito sin hacer clic en nada: el código del producto es su **SKU/código** (campo «Código» en Productos). Pitido y aviso verde/rojo; escanear de nuevo suma 1 unidad. No actúa mientras hay una ventana abierta o escribes en otro campo.
 
+## Notificaciones en Samsung / Android (compatibilidad)
+Cambios: icono `badge` monocromo (`public/badge-96.png`), plan B en el service worker si el dispositivo rechaza alguna opción, renovación automática de suscripciones hechas con otra clave VAPID, reintento al suscribir y mensaje visible al cliente si no se pudo activar (antes fallaba en silencio). Tras redesplegar, los clientes ya suscritos se actualizan solos al abrir la tienda; a quien no le llegaba debe abrir la tienda y tocar **Activar** si el aviso reaparece.
+Si en un Samsung aún no llega: (1) Ajustes › Aplicaciones › Chrome (o Samsung Internet) › Notificaciones: activadas; (2) Ajustes › Batería › Límites de uso en segundo plano: quitar Chrome/Samsung Internet de «Apps en suspensión» y «Apps en suspensión profunda» y poner la batería en «Sin restricciones»; (3) ahorro de datos y VPN desactivados; (4) probar con Chrome si usa Samsung Internet. El anuncio muestra cuántos se enviaron y los motivos de fallo (`motivos`).
+
 ## Corrección de fotos de Marketing (schema_v14_fix_fotos)
 Si Marketing veía «invalid regular expression: invalid repetition count(s)» al subir/cambiar una foto, ejecuta `supabase/schema_v14_fix_fotos.sql` en el SQL Editor de Supabase (no requiere redespliegue). PostgreSQL no admite cuantificadores mayores a 255 en un regex.
 
