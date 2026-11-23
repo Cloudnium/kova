@@ -1,7 +1,7 @@
 {
   "name": "KOVA | Eleva tu momento",
   "short_name": "KOVA",
-  "description": "Licores al mejor precio",
+  "description": "Licorería KOVA. Compra licores, cervezas, vinos y más al mejor precio.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
