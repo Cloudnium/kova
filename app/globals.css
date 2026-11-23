@@ -529,3 +529,27 @@ html{-webkit-text-size-adjust:100%}img{max-width:100%}
 .as-fab .as-av{width:100%!important;height:100%!important;border:0;background:#fff}
 .as-ph .as-av{background:#fff}
 @media(max-width:640px){.as-fab{width:66px;height:66px;right:12px;bottom:12px}}
+
+/* v17: ESTADO DE PEDIDO (tienda) */
+.snav button{white-space:nowrap}
+@media(max-width:1000px){.topR .snav{gap:16px}.topR .snav button{font-size:13px;letter-spacing:.8px}}
+.cmenu>button.cmenu-trk{background:#161616;color:#fff;border-bottom:1px solid #2a2a2a;font-weight:700;justify-content:flex-start;gap:10px}
+.mbox.trk{width:min(480px,94vw)}
+.trk-f{display:flex;gap:8px}.trk-f input{flex:1;min-width:0;text-transform:uppercase;font-size:16px;letter-spacing:.5px}.trk-f .btn{white-space:nowrap}
+.trk-h{color:var(--mut);line-height:1.45}.trk-h b{color:#1a1514}
+.trk-e{background:#fee2e2;color:#991b1b;border-radius:8px;padding:10px 12px;font-size:14px}
+.trk-x{background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 14px;color:#7f1d1d;display:grid;gap:6px}
+.trk-n{margin-bottom:10px;color:#444}
+.trk-l{list-style:none;padding:0;margin:0 0 6px;display:grid;gap:0}
+.trk-l li{display:flex;gap:12px;position:relative;padding-bottom:18px;color:#9a928f}
+.trk-l li:last-child{padding-bottom:0}
+.trk-l li::before{content:"";position:absolute;left:13px;top:28px;bottom:0;width:2px;background:#e5dfdd}
+.trk-l li:last-child::before{display:none}
+.trk-l li.done::before{background:var(--ok)}
+.trk-l .dot{flex:0 0 28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;background:#eee;color:#999}
+.trk-l li.done .dot{background:var(--ok);color:#fff}.trk-l li.done{color:#1a1514}
+.trk-l li.now .dot{background:var(--red);color:#fff;font-size:10px;box-shadow:0 0 0 4px var(--red-glow);animation:trkp 1.8s ease-in-out infinite}.trk-l li.now{color:#1a1514}
+.trk-l li.done:not(.now) .dot{background:var(--ok)}
+.trk-l li>div{display:grid;gap:2px;padding-top:3px}.trk-l small{color:var(--mut)}.trk-l em{font-style:normal;font-size:12px;color:#8a8280}
+@keyframes trkp{50%{box-shadow:0 0 0 7px transparent}}
+@media(prefers-reduced-motion:reduce){.trk-l li.now .dot{animation:none}}

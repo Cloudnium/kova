@@ -18,6 +18,7 @@ import { compressImage, upload, rnd } from '../lib/images'
 import { ticketPDF } from '../lib/tickets'
 import { Ticker } from '../lib/ticker'
 import { pushSupported, subscribeCustomer, pushEnv, PUBLIC_KEY, registerSW } from '../lib/push'
+import { OrderTrack, lastOrder, rememberOrder } from '../lib/ordertrack'
 
 export default function Tienda() {
   const [raw, setProds] = useState([]), [promos, setPromos] = useState([]), [cat, setCat] = useState('Todas'), [q, setQ] = useState(''), [cfg, setCfg] = useState({}), [branches, setBranches] = useState([]), [bid, setBid] = useState(null), [stock, setStock] = useState({})
@@ -39,6 +40,8 @@ export default function Tienda() {
   useEffect(() => { if (bid && pushSupported() && PUBLIC_KEY && Notification.permission === 'granted') subscribeCustomer(bid).catch(() => {}) }, [bid])
   const dismissPu = () => { try { localStorage.setItem('push-dismissed', String(Date.now())) } catch (e) {} setPu(null) }
   const [guide, setGuide] = useState(false)
+  const [trk, setTrk] = useState(null)      // null = cerrado · texto = abierto (con el último pedido ya cargado, si lo hay)
+  const openTrk = () => { setMenu(false); setTrk(lastOrder()) }
   // ubicación GPS del cliente (para saber a dónde llevar el pedido)
   const [gps, setGps] = useState(null), [gpsBusy, setGpsBusy] = useState(false), [gpsErr, setGpsErr] = useState('')
   const mapUrl = g => `https://www.google.com/maps?q=${g.lat},${g.lng}`
@@ -87,7 +90,7 @@ export default function Tienda() {
       const x = await rpc('create_web_order', { p_branch: bid, p_name: f.name, p_phone: f.phone, p_address: f.address || null, p_notes: [f.notes.trim(), gps && 'Ubicación GPS: ' + mapUrl(gps)].filter(Boolean).join(' | ') || null, p_items: cart.map(i => ({ id: i.id, qty: i.qty })), p_pay_mode: f.mode, p_proof: path })
       if (x.error) { setBusy(false); loadStock(); return setErr(x.error) }
       const o = x.data, sale = { ...o, source: 'web', status: 'pendiente', voucher: 'Nota de Venta' }
-      setOk({ sale, ctx: { settings: cfg, branch: o.branch } }); setGps(null); setCart([]); setProof(null); setOpen(false); setF({ ...f, notes: '' }); loadStock()
+      rememberOrder(o.order_number); setOk({ sale, ctx: { settings: cfg, branch: o.branch } }); setGps(null); setCart([]); setProof(null); setOpen(false); setF({ ...f, notes: '' }); loadStock()
       try { await ticketPDF(sale, { settings: cfg, branch: o.branch }) } catch (e) {}
     } catch (e) { setErr('No se pudo enviar el pedido. Revisa tu conexión e inténtalo de nuevo.') }
     setBusy(false)
@@ -101,7 +104,7 @@ export default function Tienda() {
           <img className="logo-img" src={cfg.logo_url || '/logo.png'} alt="Logo" />
         </div>
         <div className="topR">
-  <nav className="snav" aria-label="Secciones">{SECS.map(c => <button key={c} className={cat === c ? 'on' : ''} onClick={() => goCat(c)}>{c.toUpperCase()}</button>)}</nav>
+  <nav className="snav" aria-label="Secciones">{SECS.map(c => <button key={c} className={cat === c ? 'on' : ''} onClick={() => goCat(c)}>{c.toUpperCase()}</button>)}<button className={trk !== null ? 'on' : ''} onClick={openTrk}>ESTADO DE PEDIDO</button></nav>
         <button className="bag" aria-label="Carrito" onClick={() => setOpen(true)}>
         <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 9h2V6h3V4h-3V1h-2v3H8v2h3v3zm-4 9c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2zm-9.83-3.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.86-7.01L19.42 4h-.01l-1.1 2-2.76 5H8.53l-.13-.27L6.16 6l-.95-2-.94-2H1v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.13 0-.25-.11-.25-.25z" /></svg>
         {cart.length > 0 && <span className="badge">{cart.reduce((s, i) => s + i.qty, 0)}</span>}
@@ -113,6 +116,7 @@ export default function Tienda() {
       <div className="cmenu-h"><b>Menú</b><button aria-label="Cerrar" onClick={() => setMenu(false)}>✕</button></div>
       <form className="cmenu-s" role="search" onSubmit={e => { e.preventDefault(); goCat('Todas', true) }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7.5" /><path d="M20 20l-3.8-3.8" /></svg>
         <input type="search" enterKeyHint="search" placeholder="¿Qué busca?" aria-label="Buscar productos" value={q} onChange={e => setQ(e.target.value)} />{q && <button type="button" aria-label="Borrar búsqueda" onClick={() => setQ('')}>✕</button>}</form>
+      <button className="cmenu-trk" onClick={openTrk}>📦 Estado de pedido</button>
       <small className="cmenu-t">Secciones</small>
       {SECS.map(c => <button key={c} className={cat === c ? 'on' : ''} onClick={() => goCat(c)}>{c}{cat === c && <span>✓</span>}</button>)}
       <small className="cmenu-t">Categorías</small>
@@ -186,7 +190,8 @@ export default function Tienda() {
       <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#16a34a', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 34, margin: '0 auto' }}>✓</div>
       <h2 style={{ marginTop: 8 }}>Pedido realizado con éxito, muchas gracias por su preferencia</h2>
       <p className="sub" style={{ margin: 0 }}>Tu número de pedido es <b>{ok.sale.order_number}</b>. Se descargó tu ticket en PDF; la tienda confirmará tu pedido y te contactará.</p>
-      <button className="btn o" onClick={() => ticketPDF(ok.sale, ok.ctx)}>⬇ Descargar ticket de nuevo</button><button className="btn" onClick={() => setOk(null)}>Seguir comprando</button></div></div>}
+      <button className="btn o" onClick={() => { const n = ok.sale.order_number; setOk(null); setTrk(n) }}>📦 Ver el estado de mi pedido</button><button className="btn o" onClick={() => ticketPDF(ok.sale, ok.ctx)}>⬇ Descargar ticket de nuevo</button><button className="btn" onClick={() => setOk(null)}>Seguir comprando</button></div></div>}
+    {trk !== null && <OrderTrack initial={trk} wa={`https://wa.me/${PHONE}`} onClose={() => setTrk(null)} />}
     {pu && <div className="pushbar" role="dialog" aria-label="Notificaciones">
       <div style={{ fontSize: 26 }}>{pu === 'ok' || pu === 'copied' ? '✅' : '🔔'}</div>
       <div style={{ flex: 1 }}>{pu === 'ok' ? <b>¡Listo! Te avisaremos de nuestras ofertas.</b> : pu === 'copied' ? <b>Enlace copiado. Pégalo en Chrome o Safari.</b>

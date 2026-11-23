@@ -103,6 +103,10 @@ Ejecuta `supabase/schema_v11.sql` (despuÃ©s de v10; si te saliÃ³ Â«invalid
 ## Lector de cÃ³digo de barras (Ventas)
 En Ventas, el lector agrega productos al carrito sin hacer clic en nada: el cÃ³digo del producto es su **SKU/cÃ³digo** (campo Â«CÃ³digoÂ» en Productos). Pitido y aviso verde/rojo; escanear de nuevo suma 1 unidad. No actÃºa mientras hay una ventana abierta o escribes en otro campo.
 
+## Estado de pedido en la tienda (schema_v15_estado_pedido)
+Ejecuta `supabase/schema_v15_estado_pedido.sql` en el SQL Editor de Supabase (seguro repetirlo) y redespliega. En el navbar de la tienda aparece **ESTADO DE PEDIDO** (y en el menú del celular): el cliente escribe su número (`PW001-123`, sin necesidad de los ceros) y ve: Pedido recibido → Pedido aceptado → En camino → Entregado (o «no pudo ser atendido» con el motivo). Se actualiza solo cada 30 s y recuerda el último pedido del cliente.
+En **Pedidos web** hay un botón nuevo **🛵 En camino** (en pedidos confirmados); luego **Entregado**. La consulta pública solo devuelve estado y fechas; nunca nombre, celular, dirección ni productos.
+
 ## Notificaciones en Samsung / Android (compatibilidad)
 Cambios: icono `badge` monocromo (`public/badge-96.png`), plan B en el service worker si el dispositivo rechaza alguna opciÃ³n, renovaciÃ³n automÃ¡tica de suscripciones hechas con otra clave VAPID, reintento al suscribir y mensaje visible al cliente si no se pudo activar (antes fallaba en silencio). Tras redesplegar, los clientes ya suscritos se actualizan solos al abrir la tienda; a quien no le llegaba debe abrir la tienda y tocar **Activar** si el aviso reaparece.
 Si en un Samsung aÃºn no llega: (1) Ajustes â€º Aplicaciones â€º Chrome (o Samsung Internet) â€º Notificaciones: activadas; (2) Ajustes â€º BaterÃ­a â€º LÃ­mites de uso en segundo plano: quitar Chrome/Samsung Internet de Â«Apps en suspensiÃ³nÂ» y Â«Apps en suspensiÃ³n profundaÂ» y poner la baterÃ­a en Â«Sin restriccionesÂ»; (3) ahorro de datos y VPN desactivados; (4) probar con Chrome si usa Samsung Internet. El anuncio muestra cuÃ¡ntos se enviaron y los motivos de fallo (`motivos`).

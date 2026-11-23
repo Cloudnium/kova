@@ -32,12 +32,12 @@ export default function Pedidos() {
     if (x.error) return setE2(x.error); after(x.data, true)
   }
   const reject = async () => { const why = prompt('Motivo del rechazo (opcional):'); if (why === null) return; const x = await rpc('reject_web_order', { p_id: sel.id, p_reason: why }); if (x.error) return setE2(x.error); after() }
-  const act = async (o, a) => { const x = await rpc('mark_order', { p_id: o.id, p_action: a }); if (x.error) return setErr(x.error); load() }
+  const act = async (o, a) => { const x = await rpc('mark_order', { p_id: o.id, p_action: a }); if (x.error) return setErr(x.error + (a === 'on_the_way' && /Acción no válida/.test(x.error) ? ' · ¿Ejecutaste schema_v15_estado_pedido.sql?' : '')); load() }
   const annul = async o => { if (!confirm2(`¿Anular ${o.number}? El stock volverá a la sede.`)) return; const x = await rpc('annul_sale', { p_id: o.id }); if (x.error) return setErr(x.error); load(); refreshPending() }
   const confirm2 = m => window.confirm(m)
   const lack = sel && (sel.items || []).some(i => (stk[i.id] ?? 0) < i.qty), needDoc = f.voucher === 'Factura' && !/^\d{11}$/.test(f.doc.trim())
   const st = s => s.status === 'pendiente' ? <span className="tag y">Por confirmar</span> : s.status === 'anulado' ? <span className="tag r">{s.reject_reason ? 'Rechazado' : 'Anulado'}</span>
-    : <><span className="tag g">Confirmado</span> <span className={'tag ' + (s.paid ? 'g' : 'y')}>{s.paid ? 'Cobrado' : 'Por cobrar'}</span> <span className="tag">{s.delivery_status === 'entregado' ? 'Entregado' : 'Por entregar'}</span></>
+    : <><span className="tag g">Confirmado</span> <span className={'tag ' + (s.paid ? 'g' : 'y')}>{s.paid ? 'Cobrado' : 'Por cobrar'}</span> <span className={'tag' + (s.delivery_status === 'en_camino' ? ' y' : '')}>{s.delivery_status === 'entregado' ? 'Entregado' : s.delivery_status === 'en_camino' ? 'En camino' : 'Por entregar'}</span></>
   return (<><Head t="Pedidos web" s="Confirma los pedidos de la tienda online. El stock solo se descuenta cuando confirmas." /><Err e={err} />
     <div className="kpis"><div className="kpi" style={{ borderLeftColor: '#f59e0b' }}><span>Por confirmar</span><b>{rows.filter(s => s.status === 'pendiente').length}</b></div>
       <div className="kpi"><span>Confirmados (por cobrar)</span><b>{rows.filter(s => s.status === 'completado' && !s.paid).length}</b></div><div className="kpi" style={{ borderLeftColor: 'var(--ok)' }}><span>Por entregar</span><b>{rows.filter(s => s.status === 'completado' && s.delivery_status !== 'entregado').length}</b></div></div>
@@ -48,7 +48,7 @@ export default function Pedidos() {
           <td>{s.customer_name}<br />{wa(s.phone) ? <a href={wa(s.phone)} target="_blank" style={{ color: 'var(--ok)' }}><small>💬 {s.phone}</small></a> : <small>{s.phone}</small>}</td>{!scope && <td>{bname(s.branch_id)}</td>}
           <td>{s.pay_mode === 'pagar_ahora' ? <span className="tag g">Yape{s.payment_proof ? ' · con foto' : ''}</span> : <span className="tag">Contra entrega</span>}</td><td><b>{money(s.total)}</b></td><td>{st(s)}</td>
           <td style={{ whiteSpace: 'nowrap' }}>{s.status === 'pendiente' && <button className="btn mini" onClick={() => open(s)}>Revisar y confirmar</button>}
-            {s.status === 'completado' && <><button className="chip" onClick={() => setDone(s)}>🖨 Ticket</button> {!s.paid && <button className="chip" onClick={() => act(s, 'paid')}>Marcar cobrado</button>} {s.delivery_status !== 'entregado' && <button className="chip" onClick={() => act(s, 'delivered')}>Entregado</button>} <button className="chip" onClick={() => annul(s)}>Anular</button></>}
+            {s.status === 'completado' && <><button className="chip" onClick={() => setDone(s)}>🖨 Ticket</button> {!s.paid && <button className="chip" onClick={() => act(s, 'paid')}>Marcar cobrado</button>} {s.delivery_status !== 'entregado' && s.delivery_status !== 'en_camino' && <button className="chip" onClick={() => act(s, 'on_the_way')}>🛵 En camino</button>} {s.delivery_status !== 'entregado' && <button className="chip" onClick={() => act(s, 'delivered')}>Entregado</button>} <button className="chip" onClick={() => annul(s)}>Anular</button></>}
             {s.status === 'anulado' && <button className="chip" onClick={() => open(s)}>Ver</button>}</td></tr>)}
         {!list.length && <tr><td colSpan="8">No hay pedidos en esta vista.</td></tr>}</tbody></table></div>
     {sel && <Modal wide title={`Pedido ${sel.order_number} · ${bname(sel.branch_id)}`} onClose={() => setSel(null)}>
