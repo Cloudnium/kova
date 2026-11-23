@@ -103,6 +103,12 @@ Ejecuta `supabase/schema_v11.sql` (despuÃ©s de v10; si te saliÃ³ Â«invalid
 ## Lector de cÃ³digo de barras (Ventas)
 En Ventas, el lector agrega productos al carrito sin hacer clic en nada: el cÃ³digo del producto es su **SKU/cÃ³digo** (campo Â«CÃ³digoÂ» en Productos). Pitido y aviso verde/rojo; escanear de nuevo suma 1 unidad. No actÃºa mientras hay una ventana abierta o escribes en otro campo.
 
+## Limpiar la base de datos conservando usuarios, productos y sedes
+`supabase/limpiar_bd_conservar_usuarios_productos_sedes.sql` (pégalo completo en Supabase › SQL Editor). Borra ventas, pedidos web, cajas, egresos, compras, movimientos y stock, clientes, promociones, anuncios/suscriptores push, auditoría, configuración y correlativos; conserva usuarios, productos (con combos y fotos) y sedes. **Por defecto es MODO PRUEBA**: no borra nada y muestra cuántos registros borraría; para ejecutar de verdad cambia `v_confirmar` a `'BORRAR'`. Opciones para conservar stock, configuración o suscriptores push. Irreversible: descarga antes un respaldo (Admin › Backup). El antiguo `limpiar_bd.sql` borra también productos y sedes.
+
+## Caja obligatoria para pedidos web (schema_v16_caja_pedidos_web)
+Ejecuta `supabase/schema_v16_caja_pedidos_web.sql` (seguro repetirlo) y redespliega. Para **aceptar** un pedido web y para **marcarlo como cobrado** hay que tener tu caja abierta en la sede del pedido (igual que el POS); así ningún cobro queda fuera del cuadre. Rechazar, «En camino» y «Entregado» no piden caja. Si no hay caja, el panel avisa y ofrece «Abrir mi caja».
+
 ## Estado de pedido en la tienda (schema_v15_estado_pedido)
 Ejecuta `supabase/schema_v15_estado_pedido.sql` en el SQL Editor de Supabase (seguro repetirlo) y redespliega. En el navbar de la tienda aparece **ESTADO DE PEDIDO** (y en el menú del celular): el cliente escribe su número (`PW001-123`, sin necesidad de los ceros) y ve: Pedido recibido → Pedido aceptado → En camino → Entregado (o «no pudo ser atendido» con el motivo). Se actualiza solo cada 30 s y recuerda el último pedido del cliente.
 En **Pedidos web** hay un botón nuevo **🛵 En camino** (en pedidos confirmados); luego **Entregado**. La consulta pública solo devuelve estado y fechas; nunca nombre, celular, dirección ni productos.

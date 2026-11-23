@@ -17,7 +17,9 @@ begin
   if v_s.status <> 'completado' then raise exception 'Primero confirma el pedido'; end if;
   select email into v_email from profiles where id = auth.uid();
   if p_action = 'paid' then
+    -- Cobrar exige tu caja abierta en la sede del pedido: así el dinero entra al cuadre (antes quedaba sin caja)
     select id into v_cash from cash_registers where branch_id = v_s.branch_id and status = 'abierta' and user_email = v_email limit 1;
+    if v_cash is null and v_s.cash_id is null then raise exception 'Debes abrir tu caja en la sede % para registrar el cobro', coalesce((select name from branches where id = v_s.branch_id), ''); end if;
     update sales set paid = true, paid_at = now(), cash_id = coalesce(cash_id, v_cash), cash_name = coalesce(cash_name, (select name from cash_registers where id = v_cash)) where id = p_id returning * into v_s;
   elsif p_action = 'on_the_way' then
     if v_s.delivery_status = 'entregado' then raise exception 'Este pedido ya fue entregado'; end if;

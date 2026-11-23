@@ -8,10 +8,12 @@ import { TicketModal } from '../../../lib/ticketui'
 const TABS = [['pendiente', 'Por confirmar'], ['completado', 'Confirmados'], ['anulado', 'Rechazados / anulados'], ['', 'Todos']]
 const wa = p => { const d = String(p || '').replace(/\D/g, ''); return d ? 'https://wa.me/' + (d.length === 9 ? '51' + d : d) : null }
 export default function Pedidos() {
-  const { allBranches, branches, settings, refreshPending, reloadBox, box } = useApp(), scope = useScope()
+  const { allBranches, branches, settings, refreshPending, reloadBox, box, branchId, askBox } = useApp(), scope = useScope()
   const [rows, setRows] = useState([]), [tab, setTab] = useState('pendiente'), [q, setQ] = useState(''), [err, setErr] = useState(''), [sel, setSel] = useState(null), [done, setDone] = useState(null)
   const [f, setF] = useState({ voucher: 'Nota de Venta', doc: '', paid: false, payment: 'Efectivo' }), [stk, setStk] = useState({}), [proof, setProof] = useState(''), [busy, setBusy] = useState(false), [e2, setE2] = useState('')
   const bname = id => allBranches.find(b => b.id === id)?.name || ''
+  // Aceptar y cobrar pedidos web exige TU caja abierta en la sede del pedido (el servidor también lo valida)
+  const boxOk = o => !!(box && o && box.branch_id === o.branch_id)
   const load = useCallback(async () => {
     let x = supabase.from('sales').select('*').eq('source', 'web').order('created_at', { ascending: false }).limit(300); if (scope) x = x.eq('branch_id', scope)
     const r = await x; setRows(r.data || []); setErr(r.error?.message || '')
@@ -32,7 +34,7 @@ export default function Pedidos() {
     if (x.error) return setE2(x.error); after(x.data, true)
   }
   const reject = async () => { const why = prompt('Motivo del rechazo (opcional):'); if (why === null) return; const x = await rpc('reject_web_order', { p_id: sel.id, p_reason: why }); if (x.error) return setE2(x.error); after() }
-  const act = async (o, a) => { const x = await rpc('mark_order', { p_id: o.id, p_action: a }); if (x.error) return setErr(x.error + (a === 'on_the_way' && /Acción no válida/.test(x.error) ? ' · ¿Ejecutaste schema_v15_estado_pedido.sql?' : '')); load() }
+  const act = async (o, a) => { if (a === 'paid' && !boxOk(o)) return setErr(`Para registrar el cobro abre tu caja en ${bname(o.branch_id)}` + (o.branch_id === branchId ? ' (botón «Abrir mi caja» arriba, en Cajas).' : ': elige esa sede en la barra superior y abre tu caja.')); const x = await rpc('mark_order', { p_id: o.id, p_action: a }); if (x.error) return setErr(x.error + (a === 'on_the_way' && /Acción no válida/.test(x.error) ? ' · ¿Ejecutaste schema_v15_estado_pedido.sql?' : '')); load() }
   const annul = async o => { if (!confirm2(`¿Anular ${o.number}? El stock volverá a la sede.`)) return; const x = await rpc('annul_sale', { p_id: o.id }); if (x.error) return setErr(x.error); load(); refreshPending() }
   const confirm2 = m => window.confirm(m)
   const lack = sel && (sel.items || []).some(i => (stk[i.id] ?? 0) < i.qty), needDoc = f.voucher === 'Factura' && !/^\d{11}$/.test(f.doc.trim())
@@ -65,8 +67,8 @@ export default function Pedidos() {
         {f.voucher !== 'Nota de Venta' && <input placeholder={f.voucher === 'Factura' ? 'RUC (11 dígitos) *' : 'DNI (opcional)'} value={f.doc} maxLength={11} onChange={e => setF({ ...f, doc: e.target.value.replace(/\D/g, '') })} />}
         <div className="fgrid"><div><label>Método de pago</label><select value={f.payment} onChange={e => setF({ ...f, payment: e.target.value })}>{['Efectivo', 'Yape', 'Tarjeta', 'Transferencia'].map(m => <option key={m}>{m}</option>)}</select></div>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input type="checkbox" style={{ width: 'auto' }} checked={f.paid} onChange={e => setF({ ...f, paid: e.target.checked })} /> {sel.pay_mode === 'pagar_ahora' ? 'Pago verificado' : 'Ya fue cobrado'}</label></div>
-        {f.paid && f.payment === 'Efectivo' && !box && <small style={{ color: 'var(--mut)' }}>Tip: abre tu caja para que este cobro en efectivo entre al cuadre.</small>}
-        <Err e={e2} /><div className="row" style={{ gap: 8 }}><button className="btn o" style={{ flex: 1 }} onClick={reject}>Rechazar pedido</button><button className="btn g" style={{ flex: 2 }} disabled={busy || lack || needDoc} onClick={confirm}>{busy ? 'Confirmando...' : 'Confirmar y emitir comprobante'}</button></div>
+        {!boxOk(sel) && <p className="warn" style={{ padding: 10 }}>Para aceptar este pedido necesitas tu caja abierta en <b>{bname(sel.branch_id)}</b>. {sel.branch_id === branchId ? <button className="rmv" style={{ fontWeight: 700 }} onClick={askBox}>Abrir mi caja</button> : 'Elige esa sede en la barra superior y abre tu caja.'}</p>}
+        <Err e={e2} /><div className="row" style={{ gap: 8 }}><button className="btn o" style={{ flex: 1 }} onClick={reject}>Rechazar pedido</button><button className="btn g" style={{ flex: 2 }} disabled={busy || lack || needDoc || !boxOk(sel)} onClick={confirm}>{busy ? 'Confirmando...' : 'Confirmar y emitir comprobante'}</button></div>
         <small style={{ color: 'var(--mut)' }}>Al confirmar se descuenta el stock de {bname(sel.branch_id)} y se genera el comprobante.</small></>}
     </Modal>}
     {done && <TicketModal sale={done} ctx={{ settings, branch: allBranches.find(b => b.id === done.branch_id) }} onClose={() => setDone(null)} />}</>)

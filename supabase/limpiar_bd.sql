@@ -1,3 +1,5 @@
+-- ⚠ Este script borra TAMBIÉN productos y sedes. Si quieres conservar usuarios, productos y sedes usa:
+--    limpiar_bd_conservar_usuarios_productos_sedes.sql
 -- =====================================================================
 -- limpiar_bd.sql · BORRA TODOS LOS DATOS DEL SISTEMA, MENOS LOS USUARIOS
 -- Pégalo completo en Supabase > SQL Editor y pulsa Run.
