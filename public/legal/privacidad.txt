@@ -1,0 +1,261 @@
+## 1. RESPONSABLE DEL TRATAMIENTO DE DATOS PERSONALES
+
+El tratamiento de los datos personales recopilados a través de la plataforma será responsabilidad de su respectivo titular o administrador, quien determinará las finalidades y condiciones de utilización de dicha información conforme a la legislación vigente.
+
+En adelante, se hará referencia a este como «EL RESPONSABLE».
+
+## 2. DATOS PERSONALES QUE RECOPILAMOS
+
+Para brindar nuestros servicios y permitir el correcto funcionamiento de la plataforma, podemos recopilar diferentes tipos de datos personales, dependiendo de las funcionalidades utilizadas por el usuario.
+
+### 2.1. Datos de identificación
+
+- Nombres y apellidos.
+- Documento de identidad, cuando sea necesario.
+- Información necesaria para verificar la identidad del usuario.
+- Otros datos de identificación proporcionados voluntariamente.
+
+### 2.2. Datos de contacto
+
+- Número de teléfono celular.
+- Correo electrónico.
+- Información de contacto adicional proporcionada por el usuario.
+
+### 2.3. Datos de ubicación y entrega
+
+Cuando corresponda, podremos recopilar:
+
+- Dirección de entrega.
+- Referencias del domicilio.
+- Ubicación geográfica mediante GPS, cuando el usuario autorice el acceso a la ubicación de su dispositivo.
+- Coordenadas geográficas necesarias para identificar el lugar de entrega.
+
+Estos datos podrán utilizarse para identificar ubicaciones, calcular o coordinar entregas y facilitar la prestación de los servicios solicitados.
+
+### 2.4. Datos relacionados con las operaciones
+
+Podremos recopilar información relacionada con las actividades realizadas en la plataforma, incluyendo:
+
+- Productos o servicios adquiridos.
+- Cantidad de productos.
+- Fecha y hora de las operaciones.
+- Importe de las transacciones.
+- Historial de pedidos.
+- Estado de las operaciones.
+- Solicitudes, consultas y reclamos realizados.
+
+### 2.5. Datos relacionados con los pagos
+
+Cuando se realicen operaciones mediante medios de pago electrónicos, podrán intervenir proveedores especializados encargados del procesamiento de las transacciones.
+
+Los datos de tarjetas de crédito o débito serán tratados mediante los mecanismos de procesamiento correspondientes, según la modalidad de integración utilizada.
+
+La plataforma podrá recibir información relacionada con las operaciones, como:
+
+- Estado del pago.
+- Importe de la transacción.
+- Identificador de la operación.
+- Fecha de procesamiento.
+- Información necesaria para confirmar y gestionar la compra.
+
+La información financiera sensible será tratada conforme a las condiciones y mecanismos de seguridad del proveedor de pagos correspondiente.
+
+El almacenamiento de información de tarjetas dependerá de la modalidad de integración y de los servicios utilizados.
+
+## 3. FINALIDAD DEL TRATAMIENTO DE LOS DATOS PERSONALES
+
+Los datos personales recopilados podrán utilizarse para las siguientes finalidades:
+
+- Registrar y gestionar las cuentas de los usuarios.
+- Identificar a los usuarios dentro de la plataforma.
+- Procesar las operaciones realizadas.
+- Gestionar compras, pedidos y solicitudes.
+- Procesar y verificar pagos electrónicos.
+- Confirmar las operaciones realizadas.
+- Preparar y gestionar los pedidos.
+- Identificar ubicaciones cuando sea necesario.
+- Coordinar servicios de entrega.
+- Contactar al usuario para informar sobre sus operaciones.
+- Atender consultas, solicitudes, reclamos y devoluciones.
+- Verificar el cumplimiento de requisitos legales cuando corresponda.
+- Prevenir actividades fraudulentas o usos indebidos de la plataforma.
+- Cumplir con las obligaciones legales, comerciales y tributarias correspondientes.
+- Mejorar el funcionamiento y la experiencia de uso de la plataforma.
+
+Los datos personales no serán utilizados para finalidades incompatibles con las informadas, salvo que exista una base legal que lo permita o se obtenga el consentimiento correspondiente.
+
+## 4. USO DE LA UBICACIÓN GPS
+
+La plataforma podrá solicitar autorización para acceder a la ubicación GPS del dispositivo del usuario cuando esta funcionalidad resulte necesaria para prestar determinados servicios.
+
+La ubicación podrá utilizarse para:
+
+- Identificar el lugar donde el usuario desea recibir un pedido.
+- Facilitar la coordinación de servicios de entrega.
+- Determinar zonas de cobertura.
+- Mejorar la precisión de la dirección proporcionada.
+- Facilitar la prestación de servicios relacionados con la ubicación.
+
+El acceso a la ubicación dependerá de los permisos otorgados por el usuario desde su navegador o dispositivo.
+
+La ubicación GPS no será utilizada para realizar seguimiento permanente del usuario ni para conocer sus desplazamientos fuera de las actividades necesarias para cumplir las finalidades informadas.
+
+Cuando esté disponible, el usuario también podrá proporcionar manualmente su dirección o ubicación.
+
+## 5. PROCESAMIENTO DE PAGOS ELECTRÓNICOS
+
+Para facilitar las operaciones de pago, la plataforma podrá utilizar servicios de terceros especializados en el procesamiento de transacciones electrónicas.
+
+Cuando el usuario realice una compra mediante tarjeta de crédito, débito u otro medio electrónico:
+
+- Los datos necesarios para procesar el pago serán tratados mediante los mecanismos habilitados por el proveedor correspondiente.
+- El proveedor podrá procesar información para autorizar, validar y gestionar la transacción.
+- La plataforma podrá recibir información necesaria para confirmar el resultado de la operación.
+- Los datos relacionados con el pago podrán utilizarse para gestionar pedidos, comprobantes y solicitudes vinculadas con la transacción.
+
+El tratamiento de información por parte de los proveedores de pago estará sujeto también a sus propias políticas de privacidad y condiciones de servicio.
+
+Los datos financieros no serán comercializados ni utilizados para fines publicitarios ajenos a las finalidades autorizadas.
+
+## 6. COMPARTICIÓN DE DATOS PERSONALES CON TERCEROS
+
+Para garantizar el correcto funcionamiento de la plataforma y brindar los servicios correspondientes, determinados datos personales podrán ser compartidos con terceros que intervengan en las operaciones.
+
+Entre ellos:
+
+### 6.1. Proveedores de servicios de pago
+
+Podrán recibir y procesar la información necesaria para gestionar pagos electrónicos, validar transacciones y confirmar operaciones.
+
+### 6.2. Empresas de entrega o prestadores de servicios
+
+Podrán recibir los datos estrictamente necesarios para realizar entregas o prestar los servicios solicitados, como nombres, teléfono, dirección y ubicación del destinatario.
+
+### 6.3. Proveedores de alojamiento web y servicios tecnológicos
+
+Podrán intervenir en el almacenamiento, mantenimiento, seguridad y funcionamiento de la plataforma y sus sistemas informáticos.
+
+### 6.4. Proveedores de comunicación
+
+Cuando corresponda, podrán intervenir proveedores encargados del envío de correos electrónicos, notificaciones, mensajes y otras comunicaciones relacionadas con los servicios.
+
+### 6.5. Autoridades competentes
+
+Podremos proporcionar información personal cuando sea requerido por una autoridad competente o cuando exista una obligación legal que así lo establezca.
+
+Los terceros que intervengan en el tratamiento de datos deberán hacerlo conforme a las finalidades correspondientes y las obligaciones de protección de datos aplicables.
+
+Cuando corresponda, se informará sobre las transferencias nacionales o internacionales de datos personales y sus destinatarios conforme a la normativa vigente.
+
+## 7. CONSERVACIÓN DE LOS DATOS PERSONALES
+
+Los datos personales serán conservados durante el tiempo necesario para cumplir las finalidades descritas en esta Política de Privacidad.
+
+La información relacionada con operaciones, pagos y comprobantes podrá conservarse durante los plazos exigidos por las obligaciones legales, comerciales, contables y tributarias.
+
+Los datos relacionados con la ubicación GPS serán utilizados para gestionar los servicios correspondientes y se conservarán únicamente durante el tiempo necesario para dicha finalidad, salvo que deban mantenerse por una obligación legal o para atender controversias.
+
+Una vez cumplidas las finalidades y los plazos legales correspondientes, los datos podrán ser eliminados, anonimizados o bloqueados, según corresponda.
+
+## 8. SEGURIDAD DE LA INFORMACIÓN
+
+Se adoptarán medidas técnicas, organizativas y de seguridad destinadas a proteger los datos personales de los usuarios frente a accesos no autorizados, pérdida, alteración, divulgación o uso indebido.
+
+Entre las medidas de protección podrán incluirse:
+
+- Restricción de acceso a la información personal.
+- Uso de conexiones seguras HTTPS.
+- Protección de bases de datos.
+- Gestión de usuarios y permisos de acceso.
+- Medidas de seguridad en los procesos de compra.
+- Uso de proveedores especializados para el procesamiento de pagos.
+- Mecanismos de respaldo y recuperación de información.
+- Supervisión de los sistemas y servicios tecnológicos.
+
+Sin perjuicio de estas medidas, ningún sistema informático puede garantizar una seguridad absoluta frente a todos los riesgos existentes.
+
+## 9. COOKIES Y TECNOLOGÍAS SIMILARES
+
+La plataforma podrá utilizar cookies y tecnologías similares para mejorar la experiencia de navegación y permitir el correcto funcionamiento de sus funcionalidades.
+
+Estas tecnologías podrán utilizarse para:
+
+- Permitir el funcionamiento del sitio web.
+- Recordar preferencias del usuario.
+- Mantener la sesión de navegación.
+- Facilitar el proceso de compra.
+- Obtener estadísticas de navegación.
+- Analizar el uso de la plataforma.
+- Mejorar los servicios ofrecidos.
+
+Cuando se utilicen cookies no necesarias para el funcionamiento esencial de la plataforma, se solicitará el consentimiento correspondiente cuando resulte exigible.
+
+El usuario podrá administrar o restringir el uso de cookies desde la configuración de su navegador y, cuando esté disponible, desde las opciones de configuración de la plataforma.
+
+## 10. DERECHOS DE LOS TITULARES DE DATOS PERSONALES
+
+De acuerdo con la legislación peruana de protección de datos personales, los usuarios podrán ejercer los derechos que les correspondan, incluyendo:
+
+**Derecho de acceso:** solicitar información sobre sus datos personales y conocer cómo son utilizados.
+
+**Derecho de rectificación:** solicitar la corrección o actualización de datos personales incorrectos, incompletos o desactualizados.
+
+**Derecho de cancelación:** solicitar la eliminación de sus datos personales cuando corresponda legalmente.
+
+**Derecho de oposición:** oponerse al tratamiento de sus datos personales en los casos previstos por la normativa.
+
+Asimismo, los usuarios podrán revocar el consentimiento otorgado para aquellos tratamientos que se encuentren basados en dicho consentimiento, conforme a las disposiciones legales aplicables.
+
+Para ejercer estos derechos, el usuario podrá utilizar los canales de atención habilitados en la plataforma.
+
+Las solicitudes deberán incluir la información necesaria para identificar al titular y atender adecuadamente su requerimiento.
+
+Los derechos serán atendidos conforme a los procedimientos y plazos establecidos en la legislación peruana.
+
+## 11. COMUNICACIONES COMERCIALES Y PUBLICIDAD
+
+Los datos de contacto podrán utilizarse para enviar comunicaciones relacionadas con las operaciones realizadas, confirmaciones de pedidos, coordinación de servicios, notificaciones y demás información necesaria para brindar el servicio.
+
+El envío de promociones, descuentos, ofertas y publicidad comercial estará sujeto al consentimiento previo que corresponda y a las disposiciones legales aplicables.
+
+La aceptación para recibir publicidad será independiente de la aceptación de esta Política de Privacidad y no deberá constituir una condición obligatoria para utilizar los servicios cuando la normativa así lo establezca.
+
+El usuario podrá retirar su consentimiento para recibir comunicaciones publicitarias mediante los mecanismos habilitados para ello.
+
+## 12. PROTECCIÓN DE MENORES DE EDAD
+
+La plataforma no permitirá que los menores de edad realicen operaciones que se encuentren legalmente restringidas para ellos.
+
+Cuando la naturaleza de los productos o servicios ofrecidos implique restricciones de edad, podrán implementarse mecanismos de verificación durante el proceso de compra o al momento de realizar la entrega.
+
+En caso de identificar una operación que incumpla las restricciones legales correspondientes, se podrán adoptar las medidas necesarias, incluyendo la cancelación de la operación.
+
+El tratamiento de datos personales de menores de edad se realizará conforme a las disposiciones específicas establecidas en la legislación vigente.
+
+## 13. MODIFICACIONES DE LA POLÍTICA DE PRIVACIDAD
+
+Esta Política de Privacidad podrá actualizarse o modificarse cuando resulte necesario por cambios en los servicios, funcionalidades, procedimientos internos o disposiciones legales.
+
+Las modificaciones serán publicadas en la plataforma y entrarán en vigencia desde su publicación, salvo que se indique una fecha diferente.
+
+Se recomienda a los usuarios revisar periódicamente esta política para mantenerse informados sobre el tratamiento de sus datos personales.
+
+Cuando las modificaciones impliquen nuevos tratamientos que requieran consentimiento, se solicitará la autorización correspondiente conforme a la legislación vigente.
+
+## 14. CONSULTAS Y EJERCICIO DE DERECHOS
+
+Si el usuario tiene alguna consulta relacionada con esta Política de Privacidad o desea ejercer sus derechos sobre sus datos personales, podrá comunicarse mediante los canales de atención habilitados en la plataforma.
+
+Las solicitudes serán atendidas conforme a los procedimientos y plazos establecidos por la legislación aplicable.
+
+---
+
+## DISPOSICIONES FINALES
+
+El uso de la plataforma y el suministro de datos personales implican que el usuario ha tenido acceso a la presente Política de Privacidad y ha sido informado sobre las condiciones generales del tratamiento de su información.
+
+El consentimiento para aquellos tratamientos que lo requieran será solicitado mediante los mecanismos correspondientes.
+
+La presente Política de Privacidad se rige por la legislación vigente de la República del Perú.
+
+**Todos los derechos reservados.**

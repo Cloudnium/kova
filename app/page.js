@@ -21,6 +21,8 @@ import { pushSupported, subscribeCustomer, pushEnv, PUBLIC_KEY, registerSW } fro
 import { OrderTrack, lastOrder, rememberOrder } from '../lib/ordertrack'
 import { CulqiPay } from '../lib/culqipay'
 import { deliveryQuote, rates } from '../lib/delivery'
+import { LegalModal } from '../lib/legal'
+import { ClaimModal } from '../lib/claim'
 
 export default function Tienda() {
   const [raw, setProds] = useState([]), [promos, setPromos] = useState([]), [cat, setCat] = useState('Todas'), [q, setQ] = useState(''), [cfg, setCfg] = useState({}), [branches, setBranches] = useState([]), [bid, setBid] = useState(null), [stock, setStock] = useState({})
@@ -42,6 +44,7 @@ export default function Tienda() {
   useEffect(() => { if (bid && pushSupported() && PUBLIC_KEY && Notification.permission === 'granted') subscribeCustomer(bid).catch(() => {}) }, [bid])
   const dismissPu = () => { try { localStorage.setItem('push-dismissed', String(Date.now())) } catch (e) {} setPu(null) }
   const [guide, setGuide] = useState(false)
+  const [legal, setLegal] = useState(null), [claim, setClaim] = useState(false), [terms, setTerms] = useState(false)
   const [trk, setTrk] = useState(null)      // null = cerrado · texto = abierto (con el último pedido ya cargado, si lo hay)
   const openTrk = () => { setMenu(false); setTrk(lastOrder()) }
   // al tocar el aviso en el celular se abre la tienda con el estado de ese pedido
@@ -115,7 +118,7 @@ export default function Tienda() {
   const sub = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const dq = gps && branch ? deliveryQuote(branch, cfg, gps.lat, gps.lng) : null, dr = rates(cfg), fee = dq ? dq.fee : 0, total = sub + fee
   const add = p => setCart(c => c.find(i => i.id === p.id) ? c.map(i => i.id === p.id ? { ...i, qty: Math.min(i.qty + 1, st(p.id)) } : i) : [...c, { id: p.id, name: p.name, price: +p.price, qty: 1 }])
-  const bad = !cart.length || f.name.trim().length < 2 || f.phone.replace(/\D/g, '').length < 6 || !gps || (dq && !dq.ok) || (f.mode === 'pagar_ahora' && !proof) || (f.mode === 'culqi' && (!/^\S+@\S+\.\S+$/.test(f.email.trim()) || total < 3))
+  const bad = !terms || !cart.length || f.name.trim().length < 2 || f.phone.replace(/\D/g, '').length < 6 || !gps || (dq && !dq.ok) || (f.mode === 'pagar_ahora' && !proof) || (f.mode === 'culqi' && (!/^\S+@\S+\.\S+$/.test(f.email.trim()) || total < 3))
   // Pago en línea (Culqi): el servidor registra el pedido y crea la orden de pago; luego se abre el formulario dentro de la tienda
   const startOnline = async () => {
     setErr(''); setBusy(true)
@@ -197,9 +200,31 @@ export default function Tienda() {
         <button className="padd" disabled={n < 1} onClick={() => add(p)}>{n < 1 ? 'Agotado' : 'Agregar'}</button></div> })}
         {!list.length && <p>No hay productos en esta categoría.</p>}</div>
     </main></div>
-    <footer className="kfoot"><div className="kfoot-in"><img className="kfoot-img" src={cfg.logo_url || '/logo.png'} alt="KOVA" />
-      <div className="kfoot-soc"><small>SÍGUENOS EN NUESTRAS REDES</small><div><a href="https://www.facebook.com/share/1DL1iQuUPW/" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M24 12a12 12 0 1 0-13.9 11.9v-8.4H7.1V12h3V9.4c0-3 1.8-4.7 4.5-4.7 1.3 0 2.7.2 2.7.2v3h-1.5c-1.5 0-2 .9-2 1.9V12h3.4l-.5 3.5h-2.9v8.4A12 12 0 0 0 24 12z"/></svg><span>Facebook</span></a><a href="https://www.instagram.com/kova.zo?fqnt=MTU3ZnRrdDFpZXN2eA==" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M12 2.2c3.2 0 3.6 0 4.8.1 3.3.1 4.8 1.7 4.9 4.9.1 1.3.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 3.2-1.7 4.8-4.9 4.9-1.3.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-3.3-.1-4.8-1.7-4.9-4.9C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.8C2.4 3.9 4 2.4 7.2 2.3 8.4 2.2 8.8 2.2 12 2.2zM12 0C8.7 0 8.3 0 7.1.1 2.7.3.3 2.7.1 7.1 0 8.3 0 8.7 0 12s0 3.7.1 4.9c.2 4.4 2.6 6.8 7 7C8.3 24 8.7 24 12 24s3.7 0 4.9-.1c4.4-.2 6.8-2.6 7-7 .1-1.2.1-1.6.1-4.9s0-3.7-.1-4.9c-.2-4.4-2.6-6.8-7-7C15.7 0 15.3 0 12 0zm0 5.8a6.2 6.2 0 1 0 0 12.4 6.2 6.2 0 0 0 0-12.4zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.4-11.8a1.4 1.4 0 1 0 0 2.9 1.4 1.4 0 0 0 0-2.9z"/></svg><span>Instagram</span></a><a href="https://www.tiktok.com/@kova.zo?_r=1&_t=ZS-9Bal2QNM2Uw" target="_blank" rel="noopener noreferrer" aria-label="TikTok"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M12.5 0h3.4c.2 1.8 1.3 4.6 4.1 4.8v3.4c-1.6 0-3.1-.5-4.1-1.2v6.9c0 3.5-2.4 6.1-5.8 6.1A5.9 5.9 0 0 1 4 14.1c0-3.8 3.2-6.4 6.9-5.8v3.5c-1.7-.5-3.4.6-3.4 2.3 0 1.4 1.1 2.5 2.5 2.5 1.6 0 2.5-1 2.5-2.7V0z"/></svg><span>TikTok</span></a></div></div>
-      <small className="kfoot-c">© {new Date().getFullYear()} KOVA · Todos los derechos reservados · Venta de bebidas alcohólicas solo para mayores de 18 años.</small></div></footer>
+    <footer className="kfoot"><div className="kfoot-in">
+      <div className="kfoot-grid">
+        <div className="kfoot-brand">
+          <img className="kfoot-img" src={cfg.logo_url || '/logo.png'} alt="KOVA" />
+          <p className="kfoot-tag">Tu bar favorito, donde estés.</p>
+        </div>
+        <nav className="kfoot-col" aria-label="Información legal">
+          <h3 className="kfoot-h">Información</h3>
+          <ul className="kfoot-links">
+            <li><button type="button" onClick={() => setLegal('terminos')}><span className="kfoot-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5M9 13h6M9 17h6"/></svg></span><span className="kfoot-lt"><b>Términos y Condiciones</b><small>Reglas de compra y entrega</small></span><svg className="kfoot-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>
+            <li><button type="button" onClick={() => setLegal('privacidad')}><span className="kfoot-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2.5l7.5 2.8v6.2c0 4.7-3.2 8.6-7.5 10-4.3-1.4-7.5-5.3-7.5-10V5.3z"/><path d="M8.8 12l2.2 2.2 4.2-4.4"/></svg></span><span className="kfoot-lt"><b>Políticas de Privacidad</b><small>Cómo cuidamos tus datos</small></span><svg className="kfoot-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>
+            <li><button type="button" onClick={() => setClaim(true)}><span className="kfoot-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M20 17v4H6.5A2.5 2.5 0 0 1 4 18.5M9 8h6"/></svg></span><span className="kfoot-lt"><b>Libro de Reclamaciones</b><small>Registra tu queja o reclamo</small></span><svg className="kfoot-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>
+          </ul>
+        </nav>
+        <div className="kfoot-col kfoot-soc">
+          <h3 className="kfoot-h">Síguenos en nuestras redes</h3>
+          <div className="kfoot-sgrid">
+            <a href="https://www.facebook.com/share/1DL1iQuUPW/" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><span className="kfoot-sico"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M24 12a12 12 0 1 0-13.9 11.9v-8.4H7.1V12h3V9.4c0-3 1.8-4.7 4.5-4.7 1.3 0 2.7.2 2.7.2v3h-1.5c-1.5 0-2 .9-2 1.9V12h3.4l-.5 3.5h-2.9v8.4A12 12 0 0 0 24 12z"/></svg></span><b>Facebook</b><small>Página oficial</small></a>
+            <a href="https://www.instagram.com/kova.zo?fqnt=MTU3ZnRrdDFpZXN2eA==" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><span className="kfoot-sico"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M12 2.2c3.2 0 3.6 0 4.8.1 3.3.1 4.8 1.7 4.9 4.9.1 1.3.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 3.2-1.7 4.8-4.9 4.9-1.3.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-3.3-.1-4.8-1.7-4.9-4.9C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.8C2.4 3.9 4 2.4 7.2 2.3 8.4 2.2 8.8 2.2 12 2.2zM12 0C8.7 0 8.3 0 7.1.1 2.7.3.3 2.7.1 7.1 0 8.3 0 8.7 0 12s0 3.7.1 4.9c.2 4.4 2.6 6.8 7 7C8.3 24 8.7 24 12 24s3.7 0 4.9-.1c4.4-.2 6.8-2.6 7-7 .1-1.2.1-1.6.1-4.9s0-3.7-.1-4.9c-.2-4.4-2.6-6.8-7-7C15.7 0 15.3 0 12 0zm0 5.8a6.2 6.2 0 1 0 0 12.4 6.2 6.2 0 0 0 0-12.4zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.4-11.8a1.4 1.4 0 1 0 0 2.9 1.4 1.4 0 0 0 0-2.9z"/></svg></span><b>Instagram</b><small>@kova.zo</small></a>
+            <a href="https://www.tiktok.com/@kova.zo?_r=1&_t=ZS-9Bal2QNM2Uw" target="_blank" rel="noopener noreferrer" aria-label="TikTok"><span className="kfoot-sico"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M12.5 0h3.4c.2 1.8 1.3 4.6 4.1 4.8v3.4c-1.6 0-3.1-.5-4.1-1.2v6.9c0 3.5-2.4 6.1-5.8 6.1A5.9 5.9 0 0 1 4 14.1c0-3.8 3.2-6.4 6.9-5.8v3.5c-1.7-.5-3.4.6-3.4 2.3 0 1.4 1.1 2.5 2.5 2.5 1.6 0 2.5-1 2.5-2.7V0z"/></svg></span><b>TikTok</b><small>@kova.zo</small></a>
+          </div>
+        </div>
+      </div>
+      <div className="kfoot-bot"><small className="kfoot-c">© {new Date().getFullYear()} KOVA · Todos los derechos reservados</small><small className="kfoot-age"><i>+18</i> Venta de bebidas alcohólicas solo para mayores de 18 años. Disfruta con responsabilidad.</small></div>
+    </div></footer>
     {pv && (() => { const off = pv.old_price > pv.price, n = st(pv.id); return <div className="pv-bg" onClick={() => setPv(null)}><div className="pv" role="dialog" aria-modal="true" aria-label={pv.name} onClick={e => e.stopPropagation()}>
       <button className="pv-x" aria-label="Cerrar" onClick={() => setPv(null)}>✕</button>
       <div className="pv-img">{off && <span className="save">AHORRA {money(pv.old_price - pv.price)}</span>}{pv.promo ? <span className="ptag">🏷 {pv.promo.name}</span> : pv.kind === 'combo' && <span className="ptag">🎁 Combo</span>}{pv.image_url ? <img src={pv.image_url} alt={pv.name} /> : <svg width="70" height="170" viewBox="0 0 24 60" fill="none" stroke="#d3cbc8" strokeWidth="1.2"><path d="M10 2h4v10c0 3 5 5 5 10v34a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V22c0-5 5-7 5-10z" /></svg>}</div>
@@ -244,8 +269,9 @@ export default function Tienda() {
           : <small style={{ color: '#777' }}>Delivery {money(dr.base)} hasta {dr.baseKm} km; luego + {money(dr.perKm)} por cada km adicional. Se calcula solo con tu ubicación.</small>}
       </div>}
       <div className="row"><b>Total</b><span className="price">{money(total)}</span></div>
+      <label className={'terms-ck' + (!terms ? ' req' : '')}><input type="checkbox" checked={terms} onChange={e => setTerms(e.target.checked)} /><span>Acepto los <button type="button" onClick={e => { e.preventDefault(); setLegal('terminos') }}>Términos y Condiciones</button> y las <button type="button" onClick={e => { e.preventDefault(); setLegal('privacidad') }}>Políticas de Privacidad</button> de KOVA. *</span></label>
       <button className="btn" disabled={bad || busy} onClick={order}>{busy ? (f.mode === 'culqi' ? 'Preparando pago...' : 'Enviando...') : f.mode === 'culqi' ? 'Pagar ' + money(total) : 'Enviar pedido'}</button>
-      <button type="button" className="wabtn" disabled={!cart.length || !gps} onClick={waOrder}><img src="/whatsapp.png" alt="" width="22" height="22" /> Hacer pedido por WhatsApp</button>
+      <button type="button" className="wabtn" disabled={!cart.length || !gps || !terms} onClick={waOrder}><img src="/whatsapp.png" alt="" width="22" height="22" /> Hacer pedido por WhatsApp</button>
       <small style={{ color: '#777', textAlign: 'center' }}>Abre WhatsApp con tu lista de productos y tu ubicación para que nos escribas directamente.</small>
     </aside>}
     {ok && <div className="modal" onClick={() => setOk(null)}><div className="mbox" style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
@@ -270,6 +296,8 @@ export default function Tienda() {
     {guide && <div className="modal" onClick={() => setGuide(false)}><div className="mbox" onClick={e => e.stopPropagation()}><div className="row"><b>Instalar KOVA en tu iPhone</b><button className="btn o" onClick={() => setGuide(false)}>✕</button></div>
       <ol style={{ paddingLeft: 20, lineHeight: 1.7, margin: 0 }}><li>Abre esta página en <b>Safari</b>.</li><li>Toca el botón <b>Compartir</b> <span style={{ fontSize: 18 }}>⬆️</span> (barra inferior).</li><li>Elige <b>«Añadir a pantalla de inicio»</b> y toca <b>Añadir</b>.</li><li>Abre <b>KOVA desde tu pantalla de inicio</b> y toca <b>Activar</b> en el aviso.</li></ol>
       <small style={{ color: 'var(--mut)' }}>Requiere iOS 16.4 o superior. Apple solo permite notificaciones a las webs instaladas así.</small><button className="btn" onClick={() => { setGuide(false); dismissPu() }}>Entendido</button></div></div>}
+    {claim && <ClaimModal onClose={() => setClaim(false)} onPrivacy={() => setLegal('privacidad')} />}
+    {legal && <LegalModal doc={legal} onClose={() => setLegal(null)} />}
     <a className="wa" href={`https://wa.me/${PHONE}?text=${encodeURIComponent(WA_MSG)}`} target="_blank" aria-label="WhatsApp"><img src="/whatsapp.png" alt="WhatsApp" /></a>
   </>)
 }
