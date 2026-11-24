@@ -128,3 +128,19 @@ Ejecuta `supabase/schema_v12.sql` (despuÃ©s de v11) y redespliega. En Usuarios
 - Dashboard: accesos rÃ¡pidos, 4 KPI con "vs. ayer", ventas de la semana, ventas por categorÃ­a, evoluciÃ³n mensual (6 meses), ventas recientes y alertas de stock.
 - Reportes: filtros (tipo, fechas, sede, comprobante, origen, restablecer), 6 KPI, resumen del periodo vs. periodo anterior, utilidad estimada (usa el costo del producto), mÃ©todos de pago, top productos y top categorÃ­as. Imprimir y Exportar CSV (ventas o egresos).
 
+
+
+## Pago en línea con Culqi (Tarjeta · Yape · PagoEfectivo)
+
+1. Supabase > SQL Editor: ejecuta `supabase/schema_v18_culqi.sql`.
+2. Variables de entorno (Vercel > Settings > Environment Variables y tu `.env.local`): `NEXT_PUBLIC_CULQI_PUBLIC_KEY`, `CULQI_SECRET_KEY`, `CULQI_WEBHOOK_SECRET` (ver `.env.example`). Vuelve a desplegar.
+3. CulqiPanel > Eventos > Webhooks: registra `https://TU-DOMINIO/api/culqi/webhook?k=TU_CULQI_WEBHOOK_SECRET` con los eventos de órdenes (`order.status.changed`) y, opcional, de cargos (`charge.creation.succeeded`).
+4. Flujo: el cliente elige «Pagar en línea» en el carrito → `/api/culqi/checkout` registra el pedido y crea la orden en Culqi → formulario de Culqi incrustado → `/api/culqi/pay` cobra (tarjeta con 3D Secure / Yape) o guarda el CIP (PagoEfectivo) → el webhook confirma PagoEfectivo.
+5. En «Pedidos web» el personal solo puede aceptar un pedido de Culqi cuando el pago está acreditado. Los pendientes de pago están en la pestaña «Esperando pago en línea».
+6. Rechazar un pedido ya pagado exige devolver el dinero desde CulqiPanel (Cargos > Devolver).
+
+## Anuncio emergente al entrar a la web + rol Marketing en «Anuncios»
+
+1. Supabase > SQL Editor: ejecuta `supabase/schema_v19_anuncio_popup_marketing.sql`.
+2. Admin > Anuncios > «Anuncio al entrar a la web»: sube la imagen, elige la frecuencia, marca «Mostrar» y guarda. Al tocar la imagen, el cliente va a la sección Promociones.
+3. El rol Marketing ahora entra a «Fotos» y «Anuncios» (anuncio emergente, franja de texto y notificaciones push). No ve ventas, pedidos, clientes ni caja.

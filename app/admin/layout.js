@@ -57,7 +57,7 @@ export default function AdminLayout({ children }) {
 
   const loadSettings = useCallback(async () => { const s = await supabase.from('settings').select('*'); const m = settingsMap(s.data); setSettings(m); applyBrand(m.brand_color); return m }, [])
   const refreshPending = useCallback(async () => {
-    let q = supabase.from('sales').select('id', { count: 'exact', head: true }).eq('source', 'web').eq('status', 'pendiente'); if (branchId && branchId !== 'all') q = q.eq('branch_id', branchId)
+    let q = supabase.from('sales').select('id', { count: 'exact', head: true }).eq('source', 'web').eq('status', 'pendiente').or('pay_mode.is.null,pay_mode.neq.culqi,pay_status.eq.pagado'); if (branchId && branchId !== 'all') q = q.eq('branch_id', branchId)
     const { count } = await q; setPending(count || 0)
   }, [branchId])
   const reloadBox = useCallback(async () => {
@@ -110,7 +110,13 @@ export default function AdminLayout({ children }) {
     if (!user) return
     const ch = supabase.channel('pedidos-web').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sales', filter: 'source=eq.web' }, p => {
       const o = p.new; if (!acc.current.includes(o.branch_id)) return
+      if (o.pay_mode === 'culqi') return      // pedido con pago en línea: se avisa cuando el pago se acredite (más abajo)
       setToast({ t: `Nuevo pedido ${o.order_number || ''} de ${o.customer_name}: ${money(o.total)}${acc.current.length > 1 ? ' · ' + (names.current[o.branch_id] || '') : ''}`, id: o.id })
+      setTimeout(() => setToast(null), 12000); refreshPending(); window.dispatchEvent(new Event('pedido-web'))
+      if (cfg.current.notify_enabled !== false) playNotify(cfg.current.notify_sound_url, cfg.current.notify_volume ?? 0.8).then(ok => setBlocked(!ok))
+    }).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sales', filter: 'source=eq.web' }, p => {
+      const o = p.new; if (o.pay_mode !== 'culqi' || o.pay_status !== 'pagado' || o.status !== 'pendiente' || !acc.current.includes(o.branch_id)) return
+      setToast({ t: `Pedido PAGADO en línea ${o.order_number || ''} de ${o.customer_name}: ${money(o.total)}${acc.current.length > 1 ? ' · ' + (names.current[o.branch_id] || '') : ''}`, id: o.id })
       setTimeout(() => setToast(null), 12000); refreshPending(); window.dispatchEvent(new Event('pedido-web'))
       if (cfg.current.notify_enabled !== false) playNotify(cfg.current.notify_sound_url, cfg.current.notify_volume ?? 0.8).then(ok => setBlocked(!ok))
     }).subscribe()
@@ -119,15 +125,15 @@ export default function AdminLayout({ children }) {
     return () => { supabase.removeChannel(ch); clearInterval(i); window.removeEventListener('pointerdown', unlock) }
   }, [user, refreshPending])
   useEffect(() => { const f = e => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenu(false) }; document.addEventListener('pointerdown', f); return () => document.removeEventListener('pointerdown', f) }, [])
-  const isMkt = prof?.role === 'marketing'
-  useEffect(() => { if (isMkt && path !== '/admin/fotos') r.replace('/admin/fotos'); else if (prof && !isAdmin && !isMkt && ADMIN_ONLY.includes(path.split('/')[2])) r.replace('/admin') }, [path, prof])
+  const isMkt = prof?.role === 'marketing', MKT_OK = ['/admin/fotos', '/admin/anuncios']      // marketing: solo Fotos y Anuncios
+  useEffect(() => { if (isMkt && !MKT_OK.includes(path)) r.replace('/admin/fotos'); else if (prof && !isAdmin && !isMkt && ADMIN_ONLY.includes(path.split('/')[2])) r.replace('/admin') }, [path, prof])
 
   const pick = id => { setSede(id); setBranchId(id); setMenu(false); setBox(undefined) }
   const openBox = async () => { setBe(''); const x = await rpc('open_cash', { p_branch: branchId, p_name: bf.name, p_amount: +bf.amt || 0 }); if (x.error) return setBe(x.error); setBoxM(false); reloadBox() }
   const ctx = useMemo(() => ({ user, prof, isAdmin, branches, allBranches: all, branchId, branch, setBranch: pick, settings, reloadSettings: loadSettings, box, reloadBox, askBox: () => setBoxM(true), pending, refreshPending }),
     [user, prof, isAdmin, branches, all, branchId, branch, settings, box, pending, loadSettings, reloadBox, refreshPending])
 
-  if (isMkt && user) return <AppCtx.Provider value={ctx}><div style={{ minHeight: '100vh' }}><header className="mkt-top"><img src={settings.logo_url || '/logo.png'} alt="" /><b>Marketing</b><span style={{ marginLeft: 'auto' }}>{prof.name || user.email}</span><button className="btn o mini" onClick={async () => { await supabase.auth.signOut(); r.push('/login') }}>Salir</button></header><main style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>{path === '/admin/fotos' ? children : null}</main></div></AppCtx.Provider>
+  if (isMkt && user) return <AppCtx.Provider value={ctx}><div style={{ minHeight: '100vh' }}><header className="mkt-top"><img src={settings.logo_url || '/logo.png'} alt="" /><b>Marketing</b>{MKT_OK.map(h => <Link key={h} href={h} className={'btn mini ' + (path === h ? '' : 'o')} style={{ width: 'auto' }}>{h === '/admin/fotos' ? 'Fotos' : 'Anuncios'}</Link>)}<span style={{ marginLeft: 'auto' }}>{prof.name || user.email}</span><button className="btn o mini" onClick={async () => { await supabase.auth.signOut(); r.push('/login') }}>Salir</button></header><main style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>{MKT_OK.includes(path) ? children : null}</main></div></AppCtx.Provider>
   if (!user || !branchId) return <div style={{ padding: 40 }}>{bad || 'Cargando...'} {bad && <Link href="/login" style={{ color: 'var(--red)' }}>Volver al login</Link>}</div>
   const href = s => '/admin' + (s ? '/' + s : '')
   const title = MENU.flatMap(m => m[1]).find(x => href(x[0]) === path)?.[1] || 'Sistema'

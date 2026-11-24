@@ -19,12 +19,13 @@ import { ticketPDF } from '../lib/tickets'
 import { Ticker } from '../lib/ticker'
 import { pushSupported, subscribeCustomer, pushEnv, PUBLIC_KEY, registerSW } from '../lib/push'
 import { OrderTrack, lastOrder, rememberOrder } from '../lib/ordertrack'
+import { CulqiPay } from '../lib/culqipay'
 
 export default function Tienda() {
   const [raw, setProds] = useState([]), [promos, setPromos] = useState([]), [cat, setCat] = useState('Todas'), [q, setQ] = useState(''), [cfg, setCfg] = useState({}), [branches, setBranches] = useState([]), [bid, setBid] = useState(null), [stock, setStock] = useState({})
   // Precio con promoción vigente (el servidor vuelve a calcularlo al registrar el pedido)
   const prods = useMemo(() => { const now = limaNow(); return raw.map(p => { const r = promoPrice(p, promos, now); return r.promo ? { ...p, price: r.price, old_price: +p.price, promo: r.promo } : p }) }, [raw, promos])
-  const [cart, setCart] = useState([]), [open, setOpen] = useState(false), [f, setF] = useState({ name: '', phone: '', notes: '', mode: 'contra_entrega' }), [proof, setProof] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false), [ok, setOk] = useState(null)
+  const [cart, setCart] = useState([]), [open, setOpen] = useState(false), [f, setF] = useState({ name: '', phone: '', email: '', notes: '', mode: 'contra_entrega' }), [proof, setProof] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false), [ok, setOk] = useState(null), [cq, setCq] = useState(null), [pop, setPop] = useState('')
   const [sl, setSl] = useState(0), [menu, setMenu] = useState(false), [pv, setPv] = useState(null), PHONE = cfg.whatsapp || PHONE0, [pu, setPu] = useState(null)
   useEffect(() => { registerSW() }, [])
   useEffect(() => { if (!pv) return; const f = e => e.key === 'Escape' && setPv(null); document.addEventListener('keydown', f); return () => document.removeEventListener('keydown', f) }, [pv])
@@ -57,14 +58,16 @@ export default function Tienda() {
     setGpsErr(''); if (!navigator.geolocation) return setGpsErr('Tu navegador no permite obtener la ubicación.')
     stopGps(); setGpsBusy(true); setGpsLive(null)
     let best = null
+    // En PC no hay GPS: se acepta la ubicación aproximada del WiFi/internet. En celular se sigue exigiendo precisión.
+    const ua = navigator.userAgent || '', desktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(ua) && !(/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1)
     const finish = () => {
       stopGps(); setGpsBusy(false); setGpsLive(null)
       if (!best) return setGpsErr('No se pudo obtener tu ubicación. Activa el GPS e inténtalo de nuevo.')
-      if (best.acc > GPS_MAX) { setGps(null); return setGpsErr(`Tu ubicación es poco precisa (±${best.acc} m) y parece venir del WiFi o de la antena, no del GPS. Activa el GPS del celular (ubicación de «alta precisión»), sal a un lugar abierto e inténtalo otra vez.`) }
+      if (best.acc > GPS_MAX && !desktop) { setGps(null); return setGpsErr(`Tu ubicación es poco precisa (±${best.acc} m) y parece venir del WiFi o de la antena, no del GPS. Activa el GPS del celular (ubicación de «alta precisión»), sal a un lugar abierto e inténtalo otra vez.`) }
       setGps(best)
     }
     gpsW.current = navigator.geolocation.watchPosition(
-      p => { const c = { lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), acc: Math.round(p.coords.accuracy) }; if (!best || c.acc < best.acc) best = c; setGpsLive(best.acc); if (c.acc <= GPS_OK) finish() },
+      p => { const c = { lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), acc: Math.round(p.coords.accuracy) }; if (!best || c.acc < best.acc) best = c; setGpsLive(best.acc); if (c.acc <= GPS_OK || desktop) finish() },
       e => { if (best) return finish(); stopGps(); setGpsBusy(false); setGpsLive(null); setGpsErr(e.code === 1 ? 'Permiso denegado. Permite la ubicación de este sitio en tu navegador (candado de la barra de direcciones) e inténtalo otra vez.' : e.code === 3 ? 'Tardó demasiado. Activa el GPS e inténtalo de nuevo.' : 'No se pudo obtener tu ubicación. Activa el GPS e inténtalo de nuevo.') },
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 })
     gpsT.current = setTimeout(finish, 12000)
@@ -74,15 +77,28 @@ export default function Tienda() {
     const n = x => x.trim()
     const msg = [WA_MSG, '', ...cart.map(i => `• ${i.qty} x ${i.name} — ${money(i.price * i.qty)}`), '', `Total: ${money(total)}`, '',
       n(f.name) ? `Nombre: ${n(f.name)}` : null, n(f.phone) ? `Celular: ${n(f.phone)}` : null, n(f.notes) ? `Referencia: ${n(f.notes)}` : null,
-      gps ? `Ubicación: ${mapUrl(gps)}` : null, branch ? `Sede: ${branch.name}` : null, `Pago: ${f.mode === 'pagar_ahora' ? 'Yape' : 'Contra entrega'}`].filter(l => l !== null).join('\n')
+      gps ? `Ubicación: ${mapUrl(gps)}` : null, branch ? `Sede: ${branch.name}` : null, `Pago: ${f.mode === 'pagar_ahora' ? 'Yape' : f.mode === 'culqi' ? 'Pago en línea' : 'Contra entrega'}`].filter(l => l !== null).join('\n')
     window.open(`https://wa.me/${PHONE}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener')
   }
   const copyLink = async () => { try { await navigator.clipboard.writeText(location.href); setPu('copied'); setTimeout(() => setPu(null), 4000) } catch (e) { setPu(null) } }
   const [puErr, setPuErr] = useState(''), enablePu = async () => { try { setPuErr(''); await subscribeCustomer(bid); setPu('ok'); setTimeout(() => setPu(null), 5000) } catch (e) { if (e.message === 'denied') return dismissPu(); setPuErr(e.message || 'Error desconocido'); setPu('fail') } }
   useEffect(() => { const t = setInterval(() => setSl(i => (i + 1) % SLIDES.length), 6000); return () => clearInterval(t) }, [sl])
+  // Anuncio con imagen al entrar (se sube en Admin > Anuncios). Sale según la frecuencia elegida y solo si la imagen carga bien.
+  const showPopup = c => {
+    if (c.popup_on !== true || !c.popup_image) return
+    const v = String(c.popup_v || '1'), fr = c.popup_freq || 'sesion', day = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' })
+    try {
+      if (fr === 'sesion' && sessionStorage.getItem('kova-popup') === v) return
+      if (fr === 'dia' && localStorage.getItem('kova-popup') === v + '|' + day) return
+    } catch (e) {}
+    const im = new Image()
+    im.onload = () => { try { if (fr === 'sesion') sessionStorage.setItem('kova-popup', v); else if (fr === 'dia') localStorage.setItem('kova-popup', v + '|' + day) } catch (e) {} setPop(c.popup_image) }
+    im.src = c.popup_image
+  }
+  useEffect(() => { if (!pop) return; const k = e => e.key === 'Escape' && setPop(''); window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k) }, [pop])
   useEffect(() => { (async () => {
     const [p, b, s, pr] = await Promise.all([supabase.from('products').select('*').order('name'), supabase.from('branches').select('*').order('created_at'), supabase.from('settings').select('*'), supabase.from('promotions').select('*')])
-    const c = settingsMap(s.data); setCfg(c); applyBrand(c.brand_color); setProds(p.data || []); setPromos(pr.data || []); setBranches(b.data || [])
+    const c = settingsMap(s.data); setCfg(c); applyBrand(c.brand_color); showPopup(c); setProds(p.data || []); setPromos(pr.data || []); setBranches(b.data || [])
     let saved = null; try { saved = localStorage.getItem('store-branch') } catch (e) {}
     setBid((b.data || []).find(x => x.id === saved)?.id || b.data?.[0]?.id || null)
   })() }, [])
@@ -97,8 +113,27 @@ export default function Tienda() {
   const rm = id => setCart(c => c.filter(i => i.id !== id))
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const add = p => setCart(c => c.find(i => i.id === p.id) ? c.map(i => i.id === p.id ? { ...i, qty: Math.min(i.qty + 1, st(p.id)) } : i) : [...c, { id: p.id, name: p.name, price: +p.price, qty: 1 }])
-  const bad = !cart.length || f.name.trim().length < 2 || f.phone.replace(/\D/g, '').length < 6 || !gps || (f.mode === 'pagar_ahora' && !proof)
+  const bad = !cart.length || f.name.trim().length < 2 || f.phone.replace(/\D/g, '').length < 6 || !gps || (f.mode === 'pagar_ahora' && !proof) || (f.mode === 'culqi' && (!/^\S+@\S+\.\S+$/.test(f.email.trim()) || total < 3))
+  // Pago en línea (Culqi): el servidor registra el pedido y crea la orden de pago; luego se abre el formulario dentro de la tienda
+  const startOnline = async () => {
+    setErr(''); setBusy(true)
+    try {
+      const r = await fetch('/api/culqi/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ branch: bid, name: f.name, phone: f.phone, email: f.email.trim(), notes: f.notes.trim() || null, items: cart.map(i => ({ id: i.id, qty: i.qty })), lat: gps.lat, lng: gps.lng, acc: gps.acc }) })
+      const d = await r.json().catch(() => ({ error: 'Respuesta no válida del servidor' }))
+      if (d.error) { setBusy(false); loadStock(); return setErr(d.error) }
+      rememberOrder(d.order_number); setCq(d)
+    } catch (e) { setErr('No se pudo iniciar el pago. Revisa tu conexión e inténtalo de nuevo.') }
+    setBusy(false)
+  }
+  // El cliente terminó el pago en línea: pagado, o código de PagoEfectivo generado (queda pendiente hasta que pague)
+  const onlineDone = async res => {
+    const o = cq.sale, pay = { ...res, method: res.method || 'pagoefectivo' }
+    const sale = { ...o, source: 'web', status: 'pendiente', voucher: 'Nota de Venta', pay_mode: 'culqi', pay_status: res.kind === 'paid' ? 'pagado' : 'pendiente', pay_method: pay.method, pay_cip: res.cip || null }
+    setCq(null); setOk({ sale, ctx: { settings: cfg, branch: o.branch }, pay }); setGps(null); setCart([]); setOpen(false); setF(x => ({ ...x, notes: '' })); loadStock()
+    try { await ticketPDF(sale, { settings: cfg, branch: o.branch }) } catch (e) {}
+  }
   const order = async () => {
+    if (f.mode === 'culqi') return startOnline()
     setErr(''); setBusy(true)
     try {
       let path = null
@@ -190,6 +225,9 @@ export default function Tienda() {
       <b style={{ fontSize: 14 }}>Forma de pago</b>
       <button type="button" style={chip(f.mode === 'contra_entrega')} onClick={() => setF({ ...f, mode: 'contra_entrega' })}><b>Pago contra entrega</b><br /><small>Pagas cuando recibes tu pedido</small></button>
       <button type="button" style={chip(f.mode === 'pagar_ahora')} onClick={() => setF({ ...f, mode: 'pagar_ahora' })}><b>Pagar ahora con Yape</b><br /><small>Escanea el QR y adjunta tu captura</small></button>
+      <button type="button" style={chip(f.mode === 'culqi')} onClick={() => setF({ ...f, mode: 'culqi' })}><b>Pagar en línea</b><br /><small>Tarjeta, Yape o PagoEfectivo · sin salir de la web</small></button>
+      {f.mode === 'culqi' && <><input type="email" inputMode="email" autoComplete="email" placeholder="Tu correo electrónico * (para tu pago)" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} />
+        <small style={{ color: '#777', marginTop: -6 }}>{total > 0 && total < 3 ? '⚠ El pago en línea acepta compras desde S/ 3.00.' : 'Pagas aquí mismo de forma segura con Culqi. Si eliges PagoEfectivo, tu pedido queda pendiente hasta que pagues el código.'}</small></>}
       {f.mode === 'pagar_ahora' && <div style={{ background: '#faf6f5', borderRadius: 12, padding: 12, display: 'grid', gap: 8, justifyItems: 'center', textAlign: 'center' }}>
         {cfg.yape_qr_url ? <img src={cfg.yape_qr_url} alt="QR de Yape" style={{ width: 200, maxWidth: '100%', borderRadius: 10 }} /> : <small>QR no disponible: paga al número de Yape indicado.</small>}
         {(cfg.yape_number || cfg.yape_name) && <small>{cfg.yape_name && <b>{cfg.yape_name}</b>}{cfg.yape_number && <> · Yape {cfg.yape_number}</>}</small>}
@@ -198,15 +236,20 @@ export default function Tienda() {
         {proof && <img src={URL.createObjectURL(proof)} alt="Vista previa del pago" style={{ maxHeight: 130, borderRadius: 8 }} />}</div>}
       {err && <p style={{ color: '#b91c1c', background: '#fee2e2', padding: 10, borderRadius: 8 }}>⚠ {err}</p>}
       <div className="row"><b>Total</b><span className="price">{money(total)}</span></div>
-      <button className="btn" disabled={bad || busy} onClick={order}>{busy ? 'Enviando...' : 'Enviar pedido'}</button>
+      <button className="btn" disabled={bad || busy} onClick={order}>{busy ? (f.mode === 'culqi' ? 'Preparando pago...' : 'Enviando...') : f.mode === 'culqi' ? 'Pagar ' + money(total) : 'Enviar pedido'}</button>
       <button type="button" className="wabtn" disabled={!cart.length || !gps} onClick={waOrder}><img src="/whatsapp.png" alt="" width="22" height="22" /> Hacer pedido por WhatsApp</button>
       <small style={{ color: '#777', textAlign: 'center' }}>Abre WhatsApp con tu lista de productos y tu ubicación para que nos escribas directamente.</small>
     </aside>}
     {ok && <div className="modal" onClick={() => setOk(null)}><div className="mbox" style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
       <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#16a34a', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 34, margin: '0 auto' }}>✓</div>
-      <h2 style={{ marginTop: 8 }}>Pedido realizado con éxito, muchas gracias por su preferencia</h2>
-      <p className="sub" style={{ margin: 0 }}>Tu número de pedido es <b>{ok.sale.order_number}</b>. Se descargó tu ticket en PDF; la tienda confirmará tu pedido y te contactará.</p>
+      <h2 style={{ marginTop: 8 }}>{ok.pay?.kind === 'cip' ? 'Pedido registrado: falta tu pago' : ok.pay ? '¡Pago recibido! Gracias por tu compra' : 'Pedido realizado con éxito, muchas gracias por su preferencia'}</h2>
+      {ok.pay?.kind === 'cip' && <div className="cq-cip"><small>Tu código de pago (CIP) de PagoEfectivo</small><b>{ok.pay.cip}</b><small>Págalo en tu banca móvil o internet, o en un agente/bodega{ok.pay.expires_at ? <> antes del <b>{new Date(ok.pay.expires_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })}</b></> : null}. Tu pedido seguirá pendiente hasta que pagues y se actualizará solo.</small></div>}
+      <p className="sub" style={{ margin: 0 }}>Tu número de pedido es <b>{ok.sale.order_number}</b>. {ok.pay?.kind === 'paid' ? 'Tu pago fue acreditado; la tienda confirmará tu pedido y te contactará.' : ok.pay ? 'Guárdalo para consultar el estado de tu pago y de tu pedido.' : 'Se descargó tu ticket en PDF; la tienda confirmará tu pedido y te contactará.'}</p>
       <button className="btn o" onClick={() => { const n = ok.sale.order_number; setOk(null); setTrk(n) }}>📦 Ver el estado de mi pedido</button><button className="btn o" onClick={() => ticketPDF(ok.sale, ok.ctx)}>⬇ Descargar ticket de nuevo</button><button className="btn" onClick={() => setOk(null)}>Seguir comprando</button></div></div>}
+    {pop && <div className="pop-bg" role="dialog" aria-modal="true" aria-label="Anuncio" onClick={() => setPop('')}><div className="pop-box" onClick={e => e.stopPropagation()}>
+      <button className="pop-x" aria-label="Cerrar anuncio" onClick={() => setPop('')}>✕</button>
+      <button className="pop-img" aria-label="Ver promociones" onClick={() => { setPop(''); goCat('Promociones') }}><img src={pop} alt="Anuncio: toca para ver las promociones" /></button></div></div>}
+    {cq && <CulqiPay s={cq} cfg={cfg} onClose={() => setCq(null)} onDone={onlineDone} />}
     {trk !== null && <OrderTrack initial={trk} wa={`https://wa.me/${PHONE}`} onClose={() => setTrk(null)} />}
     {pu && <div className="pushbar" role="dialog" aria-label="Notificaciones">
       <div style={{ fontSize: 26 }}>{pu === 'ok' || pu === 'copied' ? '✅' : '🔔'}</div>

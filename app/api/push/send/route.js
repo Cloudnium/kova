@@ -4,12 +4,12 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 const db = () => createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
-// Solo administradores activos pueden enviar anuncios
+// Solo administradores y marketing (activos) pueden enviar anuncios
 async function guard(req) {
   const a = db(), t = (req.headers.get('authorization') || '').replace('Bearer ', ''), { data } = await a.auth.getUser(t)
   if (!data?.user) return null
   const { data: p } = await a.from('profiles').select('role,active,email').eq('id', data.user.id).single()
-  return p?.role === 'administrador' && p?.active !== false ? { a, email: p.email } : null
+  return (p?.role === 'administrador' || p?.role === 'marketing') && p?.active !== false ? { a, email: p.email } : null
 }
 const bad = (m, s = 400) => Response.json({ error: m }, { status: s })
 export async function POST(req) {

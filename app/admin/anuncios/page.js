@@ -20,7 +20,7 @@ export default function Anuncios() {
   const saveMq = async () => {
     setErr(''); setMqMsg(''); const t = new Date().toISOString()
     const { error } = await supabase.from('settings').upsert([{ key: 'marquee_on', value: mq.on, updated_at: t }, { key: 'marquee_text', value: mq.text.trim(), updated_at: t }, { key: 'marquee_speed', value: mq.speed, updated_at: t }])
-    if (error) return setErr(error.message + '. Solo el administrador puede cambiar la franja.')
+    if (error) return setErr(error.message + '. No tienes permiso para cambiar la franja.')
     await reloadSettings(); audit('Franja de texto de la tienda', mq.on ? mq.text.trim().slice(0, 80) : 'desactivada'); setMqMsg('Guardado. Ya se ve en la tienda.')
   }
   const audience = f.branch_id ? counts[f.branch_id] || 0 : subs || 0
@@ -50,6 +50,7 @@ export default function Anuncios() {
   const bname = id => allBranches.find(b => b.id === id)?.name || 'Todos'
   const valid = f.title.trim() && f.body.trim()
   return (<><Head t="Anuncios" s="Envía ofertas y novedades como notificación al celular, tablet o computadora de tus clientes" /><Err e={err} />{ok && <p style={{ background: '#dcfce7', padding: 10, borderRadius: 8, marginBottom: 12 }}>✓ {ok}</p>}
+    <PopupPanel />
     {mq && <div className="panel" style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
       <b>Franja de texto en la tienda</b><small style={{ color: 'var(--mut)' }}>Franja negra bajo el slider con texto que pasa de derecha a izquierda. Escribe una frase por línea: se muestran una tras otra.</small>
       <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input type="checkbox" style={{ width: 'auto' }} checked={mq.on} onChange={e => setMq({ ...mq, on: e.target.checked })} /> Mostrar la franja en la tienda</label>
@@ -77,4 +78,37 @@ export default function Anuncios() {
     <div className="panel" style={{ marginTop: 16 }}><b>Historial</b><table><thead><tr><th>Fecha</th><th>Anuncio</th><th>Audiencia</th><th>Enviados</th><th>Fallidos</th><th>Por</th><th></th></tr></thead><tbody>
       {hist.map(h => <tr key={h.id}><td>{fmtDate(h.created_at)}</td><td><b>{h.title}</b><br /><small>{h.body}</small></td><td>{h.branch_id ? bname(h.branch_id) : 'Todos'}</td><td><span className="tag g">{h.sent}</span></td><td>{h.failed > 0 ? <span className="tag r">{h.failed}</span> : 0}</td><td><small>{h.created_by}</small></td><td><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}><button className="btn g mini" disabled={!!busy} onClick={() => resend(h)}>{busy === 're' + h.id ? 'Enviando...' : '↻ Reenviar'}</button><button className="btn o mini" disabled={!!busy} title="Cargar en el formulario para modificarlo antes de enviar" onClick={() => reuse(h)}>Editar</button></div></td></tr>)}
       {!hist.length && <tr><td colSpan="7">Aún no has enviado anuncios.</td></tr>}</tbody></table></div></>)
+}
+
+// Anuncio con imagen que sale al entrar a la tienda. Al tocarlo, el cliente va a la sección Promociones.
+function PopupPanel() {
+  const { settings, reloadSettings } = useApp(), [f, setF] = useState(null), [busy, setBusy] = useState(''), [err, setErr] = useState(''), [ok, setOk] = useState('')
+  useEffect(() => { if (!f && Object.keys(settings).length) setF({ on: settings.popup_on === true, image: settings.popup_image || '', freq: settings.popup_freq || 'sesion' }) }, [settings])
+  if (!f) return null
+  const pick = async file => {
+    if (!file) return; setBusy('img'); setErr(''); setOk('')
+    try { const blob = await compressImage(file, { max: 1400, quality: 0.9 }), path = await upload('assets', `popup/${rnd()}.webp`, blob, 'image/webp'); setF(x => ({ ...x, image: publicUrl('assets', path) })) }
+    catch (e) { setErr(e.message || 'No se pudo subir la imagen') }
+    setBusy('')
+  }
+  const save = async () => {
+    setErr(''); setOk(''); if (f.on && !f.image) return setErr('Sube una imagen antes de activar el anuncio.')
+    setBusy('save'); const t = new Date().toISOString()
+    const { error } = await supabase.from('settings').upsert([{ key: 'popup_on', value: f.on, updated_at: t }, { key: 'popup_image', value: f.image, updated_at: t }, { key: 'popup_freq', value: f.freq, updated_at: t }, { key: 'popup_v', value: String(Date.now()), updated_at: t }])
+    setBusy(''); if (error) return setErr(error.message + '. ¿Ejecutaste supabase/schema_v19_anuncio_popup_marketing.sql?')
+    await reloadSettings(); audit('Anuncio emergente de la tienda', f.on ? 'activado' : 'desactivado'); setOk(f.on ? 'Guardado. Ya sale al entrar a la tienda.' : 'Guardado. El anuncio está desactivado.')
+  }
+  return (<div className="panel" style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
+    <b>Anuncio al entrar a la web</b><small style={{ color: 'var(--mut)' }}>Una imagen que aparece en el centro de la tienda cuando el cliente entra. Si la toca, lo lleva a la sección Promociones.</small>
+    {err && <p className="trk-e" role="alert">⚠ {err}</p>}{ok && <small style={{ color: 'var(--ok)' }}>✓ {ok}</small>}
+    <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input type="checkbox" style={{ width: 'auto' }} checked={f.on} onChange={e => setF({ ...f, on: e.target.checked })} /> Mostrar el anuncio en la tienda</label>
+    <div className="row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+      <label className="btn o mini" style={{ cursor: 'pointer', margin: 0 }}>{busy === 'img' ? 'Subiendo...' : f.image ? 'Cambiar imagen' : 'Subir imagen'}<input type="file" hidden accept="image/*" onChange={e => { pick(e.target.files[0]); e.target.value = '' }} /></label>
+      {f.image && <button className="btn o mini" onClick={() => setF({ ...f, image: '', on: false })}>Quitar imagen</button>}
+    </div>
+    <small style={{ color: 'var(--mut)' }}>Sube la imagen ya diseñada (JPG, PNG o WebP). Recomendado: unos 1200 px de ancho. Se muestra completa, sin recortes. Las imágenes animadas (GIF) se convierten a imagen fija.</small>
+    <div><label>¿Cada cuánto le sale al cliente?</label><select style={{ maxWidth: 360 }} value={f.freq} onChange={e => setF({ ...f, freq: e.target.value })}><option value="sesion">Una vez cada vez que abre la tienda (recomendado)</option><option value="dia">Una vez al día</option><option value="siempre">Cada vez que carga la página</option></select></div>
+    {f.image && <><small style={{ color: 'var(--mut)' }}>Vista previa:</small><img src={f.image} alt="Vista previa del anuncio" style={{ maxWidth: 'min(100%, 360px)', borderRadius: 14, border: '1px solid var(--line)' }} /></>}
+    <div><button className="btn g" style={{ width: 'auto' }} disabled={!!busy} onClick={save}>{busy === 'save' ? 'Guardando...' : 'Guardar anuncio'}</button></div>
+  </div>)
 }
