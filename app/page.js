@@ -20,6 +20,7 @@ import { Ticker } from '../lib/ticker'
 import { pushSupported, subscribeCustomer, pushEnv, PUBLIC_KEY, registerSW } from '../lib/push'
 import { OrderTrack, lastOrder, rememberOrder } from '../lib/ordertrack'
 import { CulqiPay } from '../lib/culqipay'
+import { deliveryQuote, rates } from '../lib/delivery'
 
 export default function Tienda() {
   const [raw, setProds] = useState([]), [promos, setPromos] = useState([]), [cat, setCat] = useState('Todas'), [q, setQ] = useState(''), [cfg, setCfg] = useState({}), [branches, setBranches] = useState([]), [bid, setBid] = useState(null), [stock, setStock] = useState({})
@@ -75,7 +76,7 @@ export default function Tienda() {
   // arma el mensaje con la lista del pedido y abre WhatsApp (no registra el pedido en el sistema)
   const waOrder = () => {
     const n = x => x.trim()
-    const msg = [WA_MSG, '', ...cart.map(i => `• ${i.qty} x ${i.name} — ${money(i.price * i.qty)}`), '', `Total: ${money(total)}`, '',
+    const msg = [WA_MSG, '', ...cart.map(i => `• ${i.qty} x ${i.name} — ${money(i.price * i.qty)}`), '', ...(dq ? [`Delivery (${dq.km.toFixed(1)} km): ${money(dq.fee)}`] : []), `Total: ${money(total)}`, '',
       n(f.name) ? `Nombre: ${n(f.name)}` : null, n(f.phone) ? `Celular: ${n(f.phone)}` : null, n(f.notes) ? `Referencia: ${n(f.notes)}` : null,
       gps ? `Ubicación: ${mapUrl(gps)}` : null, branch ? `Sede: ${branch.name}` : null, `Pago: ${f.mode === 'pagar_ahora' ? 'Yape' : f.mode === 'culqi' ? 'Pago en línea' : 'Contra entrega'}`].filter(l => l !== null).join('\n')
     window.open(`https://wa.me/${PHONE}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener')
@@ -111,9 +112,10 @@ export default function Tienda() {
   const goCat = (c, keep) => { if (!keep || c !== 'Todas') setCat(c); setMenu(false); setTimeout(() => document.getElementById('cat')?.scrollIntoView({ behavior: 'smooth' }), 80) }
   const chg = (id, d) => setCart(c => c.map(i => i.id === id ? { ...i, qty: Math.min(i.qty + d, st(id)) } : i).filter(i => i.qty > 0))
   const rm = id => setCart(c => c.filter(i => i.id !== id))
-  const total = cart.reduce((s, i) => s + i.price * i.qty, 0)
+  const sub = cart.reduce((s, i) => s + i.price * i.qty, 0)
+  const dq = gps && branch ? deliveryQuote(branch, cfg, gps.lat, gps.lng) : null, dr = rates(cfg), fee = dq ? dq.fee : 0, total = sub + fee
   const add = p => setCart(c => c.find(i => i.id === p.id) ? c.map(i => i.id === p.id ? { ...i, qty: Math.min(i.qty + 1, st(p.id)) } : i) : [...c, { id: p.id, name: p.name, price: +p.price, qty: 1 }])
-  const bad = !cart.length || f.name.trim().length < 2 || f.phone.replace(/\D/g, '').length < 6 || !gps || (f.mode === 'pagar_ahora' && !proof) || (f.mode === 'culqi' && (!/^\S+@\S+\.\S+$/.test(f.email.trim()) || total < 3))
+  const bad = !cart.length || f.name.trim().length < 2 || f.phone.replace(/\D/g, '').length < 6 || !gps || (dq && !dq.ok) || (f.mode === 'pagar_ahora' && !proof) || (f.mode === 'culqi' && (!/^\S+@\S+\.\S+$/.test(f.email.trim()) || total < 3))
   // Pago en línea (Culqi): el servidor registra el pedido y crea la orden de pago; luego se abre el formulario dentro de la tienda
   const startOnline = async () => {
     setErr(''); setBusy(true)
@@ -235,6 +237,12 @@ export default function Tienda() {
         <label className="dz" style={{ width: '100%', boxSizing: 'border-box' }}>{proof ? '✓ ' + proof.name : '📎 Adjuntar foto del pago *'}<input type="file" accept="image/*" hidden onChange={e => setProof(e.target.files[0] || null)} /></label>
         {proof && <img src={URL.createObjectURL(proof)} alt="Vista previa del pago" style={{ maxHeight: 130, borderRadius: 8 }} />}</div>}
       {err && <p style={{ color: '#b91c1c', background: '#fee2e2', padding: 10, borderRadius: 8 }}>⚠ {err}</p>}
+      {cart.length > 0 && <div style={{ display: 'grid', gap: 4, fontSize: 14 }}>
+        <div className="row"><span>Subtotal</span><span>{money(sub)}</span></div>
+        <div className="row"><span>🛵 Delivery{dq ? ` (${dq.km.toFixed(1)} km)` : ''}</span><span>{dq ? money(dq.fee) : 'Con tu ubicación'}</span></div>
+        {dq && !dq.ok ? <small style={{ color: '#b91c1c' }}>⚠ Estás a {dq.km.toFixed(1)} km y el delivery llega hasta {dq.maxKm} km. Escríbenos por WhatsApp para coordinar tu pedido.</small>
+          : <small style={{ color: '#777' }}>Delivery {money(dr.base)} hasta {dr.baseKm} km; luego + {money(dr.perKm)} por cada km adicional. Se calcula solo con tu ubicación.</small>}
+      </div>}
       <div className="row"><b>Total</b><span className="price">{money(total)}</span></div>
       <button className="btn" disabled={bad || busy} onClick={order}>{busy ? (f.mode === 'culqi' ? 'Preparando pago...' : 'Enviando...') : f.mode === 'culqi' ? 'Pagar ' + money(total) : 'Enviar pedido'}</button>
       <button type="button" className="wabtn" disabled={!cart.length || !gps} onClick={waOrder}><img src="/whatsapp.png" alt="" width="22" height="22" /> Hacer pedido por WhatsApp</button>

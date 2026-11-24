@@ -144,3 +144,14 @@ Ejecuta `supabase/schema_v12.sql` (despuÃ©s de v11) y redespliega. En Usuarios
 1. Supabase > SQL Editor: ejecuta `supabase/schema_v19_anuncio_popup_marketing.sql`.
 2. Admin > Anuncios > «Anuncio al entrar a la web»: sube la imagen, elige la frecuencia, marca «Mostrar» y guarda. Al tocar la imagen, el cliente va a la sección Promociones.
 3. El rol Marketing ahora entra a «Fotos» y «Anuncios» (anuncio emergente, franja de texto y notificaciones push). No ve ventas, pedidos, clientes ni caja.
+
+## Delivery por distancia (pedidos web)
+
+1. Supabase > SQL Editor: ejecuta `supabase/schema_v20_delivery.sql`.
+2. Regla: hasta 2 km S/ 3.00; cada km adicional (o fracción) + S/ 1.50; máximo 30 km. Distancia en línea recta desde tu punto de salida (-12.0194788, -76.877243).
+3. El servidor calcula la distancia y el costo con el GPS del cliente; se muestra en el carrito y en el ticket, y se suma al total (también al cobro de Culqi).
+4. Cambiar tarifas: tabla `settings`, claves `delivery_base`, `delivery_base_km`, `delivery_extra_per_km`, `delivery_max_km`, `delivery_road_factor`. Otra sede con otro punto de salida: `branches.geo_lat` / `geo_lng`.
+
+## Limpiar la base de datos
+
+`supabase/limpiar_bd_conservar_usuarios_productos_anuncios_config.sql` (empieza en modo prueba; ver instrucciones dentro del archivo).
