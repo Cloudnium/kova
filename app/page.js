@@ -22,7 +22,7 @@ import { OrderTrack, lastOrder, rememberOrder } from '../lib/ordertrack'
 import { CulqiPay } from '../lib/culqipay'
 import { deliveryQuote, rates } from '../lib/delivery'
 import { LegalModal } from '../lib/legal'
-import { ClaimModal } from '../lib/claim'
+import { ClaimModal, ClaimStatusModal } from '../lib/claim'
 
 export default function Tienda() {
   const [raw, setProds] = useState([]), [promos, setPromos] = useState([]), [cat, setCat] = useState('Todas'), [q, setQ] = useState(''), [cfg, setCfg] = useState({}), [branches, setBranches] = useState([]), [bid, setBid] = useState(null), [stock, setStock] = useState({})
@@ -44,7 +44,7 @@ export default function Tienda() {
   useEffect(() => { if (bid && pushSupported() && PUBLIC_KEY && Notification.permission === 'granted') subscribeCustomer(bid).catch(() => {}) }, [bid])
   const dismissPu = () => { try { localStorage.setItem('push-dismissed', String(Date.now())) } catch (e) {} setPu(null) }
   const [guide, setGuide] = useState(false)
-  const [legal, setLegal] = useState(null), [claim, setClaim] = useState(false), [terms, setTerms] = useState(false)
+  const [legal, setLegal] = useState(null), [claim, setClaim] = useState(false), [claimStatus, setClaimStatus] = useState(false), [terms, setTerms] = useState(false)
   const [trk, setTrk] = useState(null)      // null = cerrado · texto = abierto (con el último pedido ya cargado, si lo hay)
   const openTrk = () => { setMenu(false); setTrk(lastOrder()) }
   // al tocar el aviso en el celular se abre la tienda con el estado de ese pedido
@@ -211,7 +211,13 @@ export default function Tienda() {
           <ul className="kfoot-links">
             <li><button type="button" onClick={() => setLegal('terminos')}><span className="kfoot-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5M9 13h6M9 17h6"/></svg></span><span className="kfoot-lt"><b>Términos y Condiciones</b><small>Reglas de compra y entrega</small></span><svg className="kfoot-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>
             <li><button type="button" onClick={() => setLegal('privacidad')}><span className="kfoot-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2.5l7.5 2.8v6.2c0 4.7-3.2 8.6-7.5 10-4.3-1.4-7.5-5.3-7.5-10V5.3z"/><path d="M8.8 12l2.2 2.2 4.2-4.4"/></svg></span><span className="kfoot-lt"><b>Políticas de Privacidad</b><small>Cómo cuidamos tus datos</small></span><svg className="kfoot-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>
+          </ul>
+        </nav>
+        <nav className="kfoot-col" aria-label="Atención al cliente">
+          <h3 className="kfoot-h">Atención al cliente</h3>
+          <ul className="kfoot-links">
             <li><button type="button" onClick={() => setClaim(true)}><span className="kfoot-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M20 17v4H6.5A2.5 2.5 0 0 1 4 18.5M9 8h6"/></svg></span><span className="kfoot-lt"><b>Libro de Reclamaciones</b><small>Registra tu queja o reclamo</small></span><svg className="kfoot-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>
+            <li><button type="button" onClick={() => setClaimStatus(true)}><span className="kfoot-ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></span><span className="kfoot-lt"><b>Consultar mi reclamo</b><small>Revisa el estado con tu código</small></span><svg className="kfoot-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>
           </ul>
         </nav>
         <div className="kfoot-col kfoot-soc">
@@ -296,7 +302,8 @@ export default function Tienda() {
     {guide && <div className="modal" onClick={() => setGuide(false)}><div className="mbox" onClick={e => e.stopPropagation()}><div className="row"><b>Instalar KOVA en tu iPhone</b><button className="btn o" onClick={() => setGuide(false)}>✕</button></div>
       <ol style={{ paddingLeft: 20, lineHeight: 1.7, margin: 0 }}><li>Abre esta página en <b>Safari</b>.</li><li>Toca el botón <b>Compartir</b> <span style={{ fontSize: 18 }}>⬆️</span> (barra inferior).</li><li>Elige <b>«Añadir a pantalla de inicio»</b> y toca <b>Añadir</b>.</li><li>Abre <b>KOVA desde tu pantalla de inicio</b> y toca <b>Activar</b> en el aviso.</li></ol>
       <small style={{ color: 'var(--mut)' }}>Requiere iOS 16.4 o superior. Apple solo permite notificaciones a las webs instaladas así.</small><button className="btn" onClick={() => { setGuide(false); dismissPu() }}>Entendido</button></div></div>}
-    {claim && <ClaimModal onClose={() => setClaim(false)} onPrivacy={() => setLegal('privacidad')} />}
+    {claim && <ClaimModal onClose={() => setClaim(false)} onPrivacy={() => setLegal('privacidad')} onStatus={() => { setClaim(false); setClaimStatus(true) }} />}
+    {claimStatus && <ClaimStatusModal onClose={() => setClaimStatus(false)} onNew={() => { setClaimStatus(false); setClaim(true) }} />}
     {legal && <LegalModal doc={legal} onClose={() => setLegal(null)} />}
     <a className="wa" href={`https://wa.me/${PHONE}?text=${encodeURIComponent(WA_MSG)}`} target="_blank" aria-label="WhatsApp"><img src="/whatsapp.png" alt="WhatsApp" /></a>
   </>)

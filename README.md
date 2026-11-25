@@ -155,3 +155,10 @@ Ejecuta `supabase/schema_v12.sql` (despuÃ©s de v11) y redespliega. En Usuarios
 ## Limpiar la base de datos
 
 `supabase/limpiar_bd_conservar_usuarios_productos_anuncios_config.sql` (empieza en modo prueba; ver instrucciones dentro del archivo).
+
+## Libro de Reclamaciones en el sistema interno (sin Resend)
+
+1. Supabase > SQL Editor: ejecuta `supabase/schema_v21_reclamos.sql`.
+2. Los reclamos del footer de la tienda («Atención al cliente» > Libro de Reclamaciones) ya no se envían por correo: se guardan en la tabla `claims`. Ya no se necesitan `RESEND_API_KEY`, `RESEND_FROM` ni `RECLAMOS_TO_EMAIL`.
+3. Admin > Reclamos: lista con filtros y búsqueda, aviso en vivo con sonido, estado (Pendiente / En proceso / Atendido) y respuesta al cliente. Solo el administrador puede eliminar.
+4. El cliente ve el estado y la respuesta en el footer («Consultar mi reclamo») con su código + número de documento.

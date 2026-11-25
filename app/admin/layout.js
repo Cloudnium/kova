@@ -16,12 +16,12 @@ const MENU = [['PRINCIPAL', [['', 'Dashboard', 'home'], ['ventas', 'Ventas', 'ca
   ['GESTIÓN', [['productos', 'Productos', 'box'], ['fotos', 'Fotos', 'eye', 1], ['combos', 'Combos y promos', 'tag', 1], ['clientes', 'Clientes', 'users'], ['usuarios', 'Usuarios', 'usercog', 1], ['cajas', 'Cajas', 'till'], ['almacen', 'Almacén', 'store']]],
   ['SEDES', [['sedes', 'Sedes', 'building', 1]]],
   ['DOCUMENTOS', [['comprobantes', 'Comprobantes', 'file'], ['egresos', 'Egresos', 'truck'], ['reportes', 'Reportes', 'chart']]],
-  ['HERRAMIENTAS', [['anuncios', 'Anuncios', 'bell', 1], ['impresion', 'Impresión', 'printer'], ['backup', 'Backup', 'db', 1], ['auditoria', 'Auditoría', 'audit', 1], ['config', 'Configuración', 'gear', 1]]]]
+  ['HERRAMIENTAS', [['reclamos', 'Reclamos', 'chat'], ['anuncios', 'Anuncios', 'bell', 1], ['impresion', 'Impresión', 'printer'], ['backup', 'Backup', 'db', 1], ['auditoria', 'Auditoría', 'audit', 1], ['config', 'Configuración', 'gear', 1]]]]
 const ADMIN_ONLY = MENU.flatMap(m => m[1]).filter(x => x[3]).map(x => x[0])
 const NET = { ok: 'En línea', slow: 'Conexión lenta', down: 'Sin respuesta del servidor', off: 'Sin internet' }
 
 export default function AdminLayout({ children }) {
-  const path = usePathname(), r = useRouter(), [user, setUser] = useState(null), [prof, setProf] = useState(null), [toast, setToast] = useState(null), [pending, setPending] = useState(0), [bad, setBad] = useState('')
+  const path = usePathname(), r = useRouter(), [user, setUser] = useState(null), [prof, setProf] = useState(null), [toast, setToast] = useState(null), [pending, setPending] = useState(0), [claimsN, setClaimsN] = useState(0), [bad, setBad] = useState('')
   const [col, setCol] = useState(false), [narrow, setNarrow] = useState(false), [mob, setMob] = useState(false), [net, setNet] = useState({ s: 'ok', ms: 0 })
   const [all, setAll] = useState([]), [branchId, setBranchId] = useState(null), [settings, setSettings] = useState({}), [menu, setMenu] = useState(false)
   const [low, setLow] = useState([]), [lowOpen, setLowOpen] = useState(false), [lowErr, setLowErr] = useState('')
@@ -60,6 +60,7 @@ export default function AdminLayout({ children }) {
     let q = supabase.from('sales').select('id', { count: 'exact', head: true }).eq('source', 'web').eq('status', 'pendiente').or('pay_mode.is.null,pay_mode.neq.culqi,pay_status.eq.pagado'); if (branchId && branchId !== 'all') q = q.eq('branch_id', branchId)
     const { count } = await q; setPending(count || 0)
   }, [branchId])
+  const refreshClaims = useCallback(async () => { const { count, error } = await supabase.from('claims').select('id', { count: 'exact', head: true }).eq('status', 'pendiente'); if (!error) setClaimsN(count || 0) }, [])
   const reloadBox = useCallback(async () => {
     if (!user || !branchId || branchId === 'all') return setBox(undefined)
     const { data } = await supabase.from('cash_registers').select('*').eq('status', 'abierta').eq('user_email', user.email).eq('branch_id', branchId).limit(1)
@@ -87,6 +88,7 @@ export default function AdminLayout({ children }) {
     const s = getSede(); if (s === 'all' ? branches.length > 1 : branches.some(b => b.id === s)) setBranchId(s); else r.replace('/seleccionar-sede')
   }, [prof, branches])
   useEffect(() => { reloadBox(); refreshPending() }, [reloadBox, refreshPending])
+  useEffect(() => { if (!user) return; refreshClaims(); const i = setInterval(refreshClaims, 60000); window.addEventListener('claims-changed', refreshClaims); return () => { clearInterval(i); window.removeEventListener('claims-changed', refreshClaims) } }, [user, refreshClaims])
   // en cada sede hay que abrir una caja para vender: se ofrece al entrar
   useEffect(() => { if (box === null && branchId && !asked.current.has(branchId)) { asked.current.add(branchId); setBoxM(true) } }, [box, branchId])
 
@@ -124,6 +126,15 @@ export default function AdminLayout({ children }) {
     const unlock = () => setBlocked(false); window.addEventListener('pointerdown', unlock)
     return () => { supabase.removeChannel(ch); clearInterval(i); window.removeEventListener('pointerdown', unlock) }
   }, [user, refreshPending])
+  // reclamos nuevos del Libro de Reclamaciones (footer de la tienda) en vivo + sonido
+  useEffect(() => {
+    if (!user) return
+    const ch = supabase.channel('reclamos-web').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'claims' }, p => {
+      setToast({ t: `Nuevo ${(p.new.kind || 'reclamo').toLowerCase()} ${p.new.code} de ${p.new.name}`, id: p.new.id, to: '/admin/reclamos' }); setTimeout(() => setToast(null), 12000); refreshClaims()
+      if (cfg.current.notify_enabled !== false) playNotify(cfg.current.notify_sound_url, cfg.current.notify_volume ?? 0.8).then(ok => setBlocked(!ok))
+    }).subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [user, refreshClaims])
   useEffect(() => { const f = e => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenu(false) }; document.addEventListener('pointerdown', f); return () => document.removeEventListener('pointerdown', f) }, [])
   const isMkt = prof?.role === 'marketing', MKT_OK = ['/admin/fotos', '/admin/anuncios']      // marketing: solo Fotos y Anuncios
   useEffect(() => { if (isMkt && !MKT_OK.includes(path)) r.replace('/admin/fotos'); else if (prof && !isAdmin && !isMkt && ADMIN_ONLY.includes(path.split('/')[2])) r.replace('/admin') }, [path, prof])
@@ -144,7 +155,7 @@ export default function AdminLayout({ children }) {
     {mob && <div className="side-bg" onClick={() => setMob(false)} />}
     <aside className={'side' + (col && !narrow ? ' col' : '') + (mob ? ' mob' : '')}>
       <div className="brand"><img src={settings.logo_url || '/logo.png'} alt="Logo" /></div>
-      <nav className="menu">{MENU.map(([t, items]) => { const v = items.filter(x => !x[3] || isAdmin); return v.length ? <div key={t}><h6>{t}</h6>{v.map(([s, l, i]) => <Link key={s} href={href(s)} title={l} className={path === href(s) ? 'on' : ''}><Ico n={i} /><span className="lb">{l}</span>{s === 'pedidos' && pending > 0 && <span className="mnbadge">{pending}</span>}</Link>)}</div> : null })}</nav>
+      <nav className="menu">{MENU.map(([t, items]) => { const v = items.filter(x => !x[3] || isAdmin); return v.length ? <div key={t}><h6>{t}</h6>{v.map(([s, l, i]) => <Link key={s} href={href(s)} title={l} className={path === href(s) ? 'on' : ''}><Ico n={i} /><span className="lb">{l}</span>{s === 'pedidos' && pending > 0 && <span className="mnbadge">{pending}</span>}{s === 'reclamos' && claimsN > 0 && <span className="mnbadge">{claimsN}</span>}</Link>)}</div> : null })}</nav>
       <div className="user"><div className="av">{name[0].toUpperCase()}</div><div className="uinfo"><b>{name}</b><br /><small>{isAdmin ? 'Administrador' : 'Trabajador'}</small></div></div>
     </aside>
     <div className="main">
@@ -166,7 +177,7 @@ export default function AdminLayout({ children }) {
         </div>
       </div>
       {lowErr && <p style={{ margin: '0 24px', background: '#fef3c7', padding: 12, borderRadius: 8 }}>⚠ No se pudo cargar la alerta de stock: <b>{lowErr}</b>. Ejecuta <code>supabase/schema_v7.sql</code> en Supabase (SQL Editor) y recarga la página.</p>}
-      {toast && <div className="toast" style={{ cursor: 'pointer' }} onClick={() => { setToast(null); r.push('/admin/pedidos') }}>🔔 {toast.t}</div>}
+      {toast && <div className="toast" style={{ cursor: 'pointer' }} onClick={() => { setToast(null); r.push(toast.to || '/admin/pedidos') }}>🔔 {toast.t}</div>}
       <div className="page">{children}</div>
     </div>
     {boxM && branchId !== 'all' && <Modal title={`Abrir caja · ${branch?.name || ''}`} onClose={() => setBoxM(false)}>

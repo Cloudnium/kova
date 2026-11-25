@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createHash } from 'crypto'
+import { createClient } from '@supabase/supabase-js'
 
 export const runtime = 'nodejs'
 
@@ -22,67 +23,29 @@ export async function POST(request) {
     if (!/^\S+@\S+\.\S+$/.test(v.email)) return NextResponse.json({ error: 'El correo electrónico no es válido.' }, { status: 400 })
     if (!v.accept) return NextResponse.json({ error: 'Debes aceptar el tratamiento de tus datos personales.' }, { status: 400 })
 
-    const apiKey = clean(process.env.RESEND_API_KEY, 200)
-    const toRaw = process.env.RECLAMOS_TO_EMAIL || (process.env.VAPID_SUBJECT || '').replace(/^mailto:/, '')
-    const to = String(toRaw).split(/[,;\s]+/).map(x => clean(x, 120)).filter(x => /^\S+@\S+\.\S+$/.test(x))
-    if (!apiKey || !to.length) {
-      console.error('[reclamos] Falta configurar RESEND_API_KEY y/o RECLAMOS_TO_EMAIL')
-      return NextResponse.json({ error: 'El correo de reclamos aún no está configurado.' }, { status: 500 })
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL, key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    if (!url || !key) {
+      console.error('[reclamos] Faltan las claves de Supabase en el servidor')
+      return NextResponse.json({ error: 'El libro de reclamaciones aún no está configurado.' }, { status: 500 })
     }
-    const from = clean(process.env.RESEND_FROM, 200) || 'KOVA <onboarding@resend.dev>'
 
     // El código sale de los datos del reclamo: si el cliente reenvía lo mismo (doble clic, reintento por mala señal)
-    // Resend reconoce la misma Idempotency-Key y NO manda el correo dos veces, y el cliente recibe el mismo código.
+    // la base reconoce el mismo código y NO lo guarda dos veces; el cliente recibe el mismo código.
     const day = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' }).replace(/-/g, '')
     const hash = createHash('sha256').update(day + JSON.stringify(v)).digest('hex')
     const code = `LR-${day}-${hash.slice(0, 6).toUpperCase()}`
-    const when = new Date().toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'short', timeStyle: 'short' })
-    const text = [
-      'NUEVO RECLAMO - LIBRO DE RECLAMACIONES KOVA',
-      `Código: ${code}`,
-      `Fecha de registro: ${when}`,
-      `Fecha indicada por el consumidor: ${v.date || 'No indicada'}`,
-      '',
-      'CONSUMIDOR',
-      `Nombre: ${v.name}`,
-      `Documento: ${v.docType} ${v.docNumber}`,
-      `Nacionalidad: ${v.nationality || 'No indicada'}`,
-      `Domicilio: ${v.address}`,
-      `Teléfono: ${v.phone}`,
-      `Correo: ${v.email}`,
-      '',
-      'RECLAMO',
-      `Tipo: ${v.kind || 'Reclamo'}`,
-      `Producto o servicio: ${v.product}`,
-      `Número de pedido: ${v.order || 'No indicado'}`,
-      `Monto reclamado: S/ ${v.amount || '0.00'}`,
-      `Deseo: ${v.desire || 'No indicado'}`,
-      `Descripción: ${v.detail}`,
-      '',
-      'El consumidor aceptó el tratamiento de sus datos personales conforme a la Política de Privacidad.'
-    ].join('\n')
 
-    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 20000)
-    let res, data
-    try {
-      res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': `reclamo-${hash.slice(0, 48)}` },
-        body: JSON.stringify({ from, to, reply_to: v.email, subject: `${v.kind || 'Reclamo'} ${code} - ${v.name}`, text }),
-        signal: ctl.signal
-      })
-      data = await res.json().catch(() => ({}))
-    } catch (e) {
-      console.error('[reclamos] No se pudo contactar a Resend:', e?.name === 'AbortError' ? 'tiempo de espera agotado' : e?.message)
-      return NextResponse.json({ error: 'No pudimos enviar tu reclamo en este momento. Inténtalo de nuevo en unos minutos o escríbenos por WhatsApp.' }, { status: 502 })
-    } finally { clearTimeout(timer) }
-
-    if (!res.ok) {
-      // El detalle técnico (clave inválida, dominio sin verificar, etc.) va al log del servidor; al cliente, un mensaje claro.
-      console.error('[reclamos] Resend respondió', res.status, JSON.stringify(data))
-      const body = { error: 'No pudimos enviar tu reclamo en este momento. Inténtalo de nuevo en unos minutos o escríbenos por WhatsApp.' }
-      if (process.env.NODE_ENV !== 'production') body.debug = data
-      return NextResponse.json(body, { status: 502 })
+    const db = createClient(url, key, { auth: { persistSession: false } })
+    const { error } = await db.rpc('create_claim', {
+      p_code: code, p_date: /^\d{4}-\d{2}-\d{2}$/.test(v.date) ? v.date : null, p_name: v.name, p_doc_type: v.docType, p_doc_number: v.docNumber,
+      p_nationality: v.nationality, p_address: v.address, p_phone: v.phone, p_email: v.email, p_product: v.product, p_order: v.order,
+      p_amount: v.amount ? Number(v.amount) : 0, p_kind: v.kind, p_detail: v.detail, p_desire: v.desire
+    })
+    if (error) {
+      console.error('[reclamos] No se pudo guardar el reclamo:', error.code, error.message)
+      // P0001 = mensajes propios de la base (validaciones / límite de envíos): son claros para el cliente
+      if (error.code === 'P0001') return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: 'No pudimos registrar tu reclamo en este momento. Inténtalo de nuevo en unos minutos o escríbenos por WhatsApp.' }, { status: 502 })
     }
 
     return NextResponse.json({ ok: true, code })

@@ -397,7 +397,7 @@ html{-webkit-text-size-adjust:100%}img{max-width:100%}
 /* v18 · footer (rediseño: 3 columnas — marca · información · redes) */
 .kfoot{background:#0b0b0b;color:#fff;margin-top:40px;padding:58px 24px 100px;border-top:1px solid rgba(212,175,55,.28);background-image:radial-gradient(ellipse at 50% -20%,rgba(212,175,55,.08),transparent 60%)}
 .kfoot-in{max-width:1100px;margin:0 auto}
-.kfoot-grid{display:grid;grid-template-columns:1fr 1.25fr 1fr;gap:44px clamp(28px,5vw,64px);align-items:start}
+.kfoot-grid{display:grid;grid-template-columns:1fr 1.2fr 1.2fr 1fr;gap:44px clamp(28px,5vw,64px);align-items:start}
 .kfoot-brand{display:flex;flex-direction:column;align-items:flex-start;gap:14px}
 .kfoot-img{height:92px;width:auto;max-width:100%;object-fit:contain}
 .kfoot-tag{margin:0;color:rgba(255,255,255,.6);font-size:13.5px;letter-spacing:.04em;line-height:1.5}
@@ -423,7 +423,7 @@ html{-webkit-text-size-adjust:100%}img{max-width:100%}
 .kfoot-c{color:rgba(255,255,255,.5);font-size:12px}
 .kfoot-age{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.5);font-size:12px;line-height:1.5}
 .kfoot-age i{flex:none;font-style:normal;font-weight:800;font-size:11px;letter-spacing:.04em;color:#d4af37;border:1.5px solid #d4af37;border-radius:50%;width:30px;height:30px;display:grid;place-items:center}
-@media(max-width:900px){.kfoot-grid{grid-template-columns:1fr 1fr}.kfoot-brand{grid-column:1/-1;align-items:center;text-align:center}}
+@media(max-width:900px){.kfoot-grid{grid-template-columns:1fr 1fr}.kfoot-brand{grid-column:1/-1;align-items:center;text-align:center}.kfoot-soc{grid-column:1/-1}}
 @media(max-width:640px){.kfoot{padding:44px 18px 96px}.kfoot-grid{grid-template-columns:1fr;gap:34px}.kfoot-img{height:80px}.kfoot-col{width:100%;max-width:440px;margin:0 auto}.kfoot-h{text-align:center;border-bottom:0;padding-bottom:0}.kfoot-bot{flex-direction:column;text-align:center;margin-top:34px}.kfoot-age{flex-direction:column;gap:8px}}
 .legal-bg{position:fixed;inset:0;z-index:96;background:rgba(8,8,8,.72);backdrop-filter:blur(7px);display:grid;place-items:center;padding:18px;animation:legalFade .18s ease-out}
 .claim-bg{z-index:92}
@@ -662,3 +662,5 @@ html{-webkit-text-size-adjust:100%}img{max-width:100%}
 .terms-ck input{flex:none;width:18px;height:18px;padding:0;margin-top:1px;accent-color:var(--red);cursor:pointer}
 .terms-ck button{border:0;background:none;padding:0;color:var(--red);font:inherit;text-decoration:underline;cursor:pointer;text-align:left}
 .terms-ck button:hover{color:var(--red-d)}
+
+.claim-st{max-width:520px;margin:0 auto;padding:6px 0}.claim-st .cl{display:block;margin-bottom:14px}.claim-res{margin-top:18px;border:1px solid var(--line);border-radius:14px;padding:16px 18px;background:#faf8f7}.claim-res h4{margin:0 0 6px;font-size:15px}.claim-res p{margin:6px 0;font-size:14px;line-height:1.55;white-space:pre-wrap}.claim-res .tag{margin-left:6px}
