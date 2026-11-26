@@ -20,7 +20,7 @@ do $$
 declare t text;
 begin
   -- orden pensado para respetar las relaciones entre tablas; si alguna tabla no existe (versiones antiguas) se omite
-  foreach t in array array['combo_items','promotions','purchases','sales','cash_registers','expenses','stock_moves','doc_counters','branch_stock',
+  foreach t in array array['combo_items','promotions','purchases','discount_redemptions','discount_codes','sales','cash_registers','expenses','stock_moves','doc_counters','branch_stock',
                            'products','customers','push_subscriptions','push_announcements','audit_log','settings','branches'] loop
     if to_regclass('public.' || t) is not null then
       execute format('delete from public.%I where true', t);

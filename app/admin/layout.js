@@ -13,7 +13,7 @@ import { StockAlert, fetchLowStock, alertSeen, markSeen, clearSeen } from '../..
 
 // [ruta, etiqueta, icono, solo administrador]
 const MENU = [['PRINCIPAL', [['', 'Dashboard', 'home'], ['ventas', 'Ventas', 'cart'], ['pedidos', 'Pedidos web', 'bag']]],
-  ['GESTIÓN', [['productos', 'Productos', 'box'], ['fotos', 'Fotos', 'eye', 1], ['combos', 'Combos y promos', 'tag', 1], ['clientes', 'Clientes', 'users'], ['usuarios', 'Usuarios', 'usercog', 1], ['cajas', 'Cajas', 'till'], ['almacen', 'Almacén', 'store']]],
+  ['GESTIÓN', [['productos', 'Productos', 'box'], ['fotos', 'Fotos', 'eye', 1], ['combos', 'Combos y promos', 'tag', 1], ['codigos', 'Código de descuento', 'tag', 1], ['clientes', 'Clientes', 'users'], ['usuarios', 'Usuarios', 'usercog', 1], ['cajas', 'Cajas', 'till'], ['almacen', 'Almacén', 'store']]],
   ['SEDES', [['sedes', 'Sedes', 'building', 1]]],
   ['DOCUMENTOS', [['comprobantes', 'Comprobantes', 'file'], ['egresos', 'Egresos', 'truck'], ['reportes', 'Reportes', 'chart']]],
   ['HERRAMIENTAS', [['reclamos', 'Reclamos', 'chat'], ['anuncios', 'Anuncios', 'bell', 1], ['impresion', 'Impresión', 'printer'], ['backup', 'Backup', 'db', 1], ['auditoria', 'Auditoría', 'audit', 1], ['config', 'Configuración', 'gear', 1]]]]

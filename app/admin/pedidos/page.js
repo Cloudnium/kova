@@ -66,6 +66,7 @@ export default function Pedidos() {
       <table><thead><tr><th>Producto</th><th>Cant.</th><th>Disponible en sede</th><th>Importe</th></tr></thead><tbody>
         {(sel.items || []).map((i, k) => <tr key={k}><td>{i.name}</td><td>{i.qty}</td><td>{sel.status !== 'pendiente' ? '-' : (stk[i.id] ?? 0) < i.qty ? <span className="warn">Solo {stk[i.id] ?? 0}</span> : <span className="tag g">{stk[i.id]}</span>}</td><td>{money(i.qty * i.price)}</td></tr>)}
         {+sel.delivery_fee > 0 && <tr><td colSpan="3">🛵 Delivery{+sel.delivery_km ? ` (${(+sel.delivery_km).toFixed(1)} km)` : ''}</td><td>{money(sel.delivery_fee)}</td></tr>}
+        {+sel.code_discount > 0 && <tr><td colSpan="3">🏷 Código de descuento <b>{sel.discount_code}</b></td><td style={{ color: 'var(--ok)' }}>- {money(sel.code_discount)}</td></tr>}
         <tr><td colSpan="3"><b>TOTAL</b></td><td><b>{money(sel.total)}</b></td></tr></tbody></table>
       {sel.payment_proof && <div><b>Foto del pago</b>{proof ? <a href={proof} target="_blank"><img className="proof" src={proof} alt="Comprobante de pago" /></a> : <p className="sub">Cargando imagen...</p>}</div>}
       {sel.status === 'anulado' && <p className="warn">Rechazado{sel.reject_reason ? ': ' + sel.reject_reason : ''}</p>}

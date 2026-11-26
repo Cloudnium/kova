@@ -14,8 +14,8 @@ export async function POST(req) {
   const db = admin()
   const { data: sale, error } = await db.rpc('create_culqi_order', {
     p_branch: b.branch, p_name: String(b.name || ''), p_phone: String(b.phone || ''), p_email: email, p_notes: b.notes ? String(b.notes) : null,
-    p_items: b.items.map(i => ({ id: i.id, qty: i.qty })), p_lat: b.lat, p_lng: b.lng, p_acc: b.acc ?? null })
-  if (error) return bad(/function .*does not exist|create_culqi_order/i.test(error.message) ? 'Falta ejecutar schema_v18_culqi.sql en Supabase.' : error.message)
+    p_items: b.items.map(i => ({ id: i.id, qty: i.qty })), p_lat: b.lat, p_lng: b.lng, p_acc: b.acc ?? null, p_code: b.code ? String(b.code).slice(0, 40) : null })
+  if (error) return bad(/function .*does not exist|create_culqi_order/i.test(error.message) ? 'Falta ejecutar schema_v22_codigos_descuento.sql en Supabase.' : error.message)
 
   const drop = () => db.rpc('culqi_abandon', { p_sale: sale.id })
   const amount = cents(sale.total)

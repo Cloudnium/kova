@@ -31,7 +31,7 @@ declare
   v_confirmar            text    := 'NO';   -- 'NO' = solo prueba · 'BORRAR' = borra de verdad
   v_conservar_suscritos  boolean := true;   -- true = conserva los dispositivos suscritos a push
   -- ============================================
-  v_lista text[] := array['order_push', 'culqi_events', 'claims', 'sales', 'purchases', 'expenses', 'cash_registers', 'stock_moves',
+  v_lista text[] := array['order_push', 'culqi_events', 'claims', 'discount_redemptions', 'sales', 'purchases', 'expenses', 'cash_registers', 'stock_moves',
                           'customers', 'doc_counters', 'branch_stock', 'promotions', 'push_announcements', 'audit_log'];
   t text; n bigint; v_resumen text := '';
 begin

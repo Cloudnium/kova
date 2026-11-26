@@ -45,6 +45,8 @@ export default function Tienda() {
   const dismissPu = () => { try { localStorage.setItem('push-dismissed', String(Date.now())) } catch (e) {} setPu(null) }
   const [guide, setGuide] = useState(false)
   const [legal, setLegal] = useState(null), [claim, setClaim] = useState(false), [claimStatus, setClaimStatus] = useState(false), [terms, setTerms] = useState(false)
+  // Código de descuento: lo valida y calcula el servidor (validate_discount_code); aquí solo se muestra
+  const [codeIn, setCodeIn] = useState(''), [codeApplied, setCodeApplied] = useState(''), [codeInfo, setCodeInfo] = useState(null), [codeErr, setCodeErr] = useState(''), [codeBusy, setCodeBusy] = useState(false)
   const [trk, setTrk] = useState(null)      // null = cerrado · texto = abierto (con el último pedido ya cargado, si lo hay)
   const openTrk = () => { setMenu(false); setTrk(lastOrder()) }
   // al tocar el aviso en el celular se abre la tienda con el estado de ese pedido
@@ -79,7 +81,7 @@ export default function Tienda() {
   // arma el mensaje con la lista del pedido y abre WhatsApp (no registra el pedido en el sistema)
   const waOrder = () => {
     const n = x => x.trim()
-    const msg = [WA_MSG, '', ...cart.map(i => `• ${i.qty} x ${i.name} — ${money(i.price * i.qty)}`), '', ...(dq ? [`Delivery (${dq.km.toFixed(1)} km): ${money(dq.fee)}`] : []), `Total: ${money(total)}`, '',
+    const msg = [WA_MSG, '', ...cart.map(i => `• ${i.qty} x ${i.name} — ${money(i.price * i.qty)}`), '', ...(dq ? [`Delivery (${dq.km.toFixed(1)} km): ${money(dq.fee)}`] : []), ...(disc > 0 ? [`Código ${codeApplied}: - ${money(disc)}`] : []), `Total: ${money(total)}`, '',
       n(f.name) ? `Nombre: ${n(f.name)}` : null, n(f.phone) ? `Celular: ${n(f.phone)}` : null, n(f.notes) ? `Referencia: ${n(f.notes)}` : null,
       gps ? `Ubicación: ${mapUrl(gps)}` : null, branch ? `Sede: ${branch.name}` : null, `Pago: ${f.mode === 'pagar_ahora' ? 'Yape' : f.mode === 'culqi' ? 'Pago en línea' : 'Contra entrega'}`].filter(l => l !== null).join('\n')
     window.open(`https://wa.me/${PHONE}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener')
@@ -108,7 +110,7 @@ export default function Tienda() {
   })() }, [])
   const loadStock = () => bid && supabase.rpc('stock_view', { p_branch: bid }).then(r => r.error ? supabase.from('branch_stock').select('product_id,stock').eq('branch_id', bid) : r).then(r => setStock(Object.fromEntries((r.data || []).map(x => [x.product_id, x.stock]))))
   useEffect(() => { loadStock() }, [bid])
-  const pickBranch = id => { setBid(id); setCart([]); try { localStorage.setItem('store-branch', id) } catch (e) {} }
+  const pickBranch = id => { setBid(id); setCart([]); setCodeApplied(''); setCodeInfo(null); setCodeErr(''); setCodeIn(''); try { localStorage.setItem('store-branch', id) } catch (e) {} }
   const branch = branches.find(b => b.id === bid), st = id => stock[id] ?? 0
   const list = useMemo(() => prods.filter(p => (cat === 'Todas' || (cat === 'Packs' || cat === 'Combos' ? p.is_pack || p.kind === 'combo' : cat === 'Ofertas' ? OFF(p) : cat === 'Promociones' ? !!p.promo : p.category === cat)) && p.name.toLowerCase().includes(q.trim().toLowerCase())), [prods, cat, q])
   // elige una sección/categoría (o solo aplica la búsqueda) y baja a los productos
@@ -116,14 +118,32 @@ export default function Tienda() {
   const chg = (id, d) => setCart(c => c.map(i => i.id === id ? { ...i, qty: Math.min(i.qty + d, st(id)) } : i).filter(i => i.qty > 0))
   const rm = id => setCart(c => c.filter(i => i.id !== id))
   const sub = cart.reduce((s, i) => s + i.price * i.qty, 0)
-  const dq = gps && branch ? deliveryQuote(branch, cfg, gps.lat, gps.lng) : null, dr = rates(cfg), fee = dq ? dq.fee : 0, total = sub + fee
+  const dq = gps && branch ? deliveryQuote(branch, cfg, gps.lat, gps.lng) : null, dr = rates(cfg), fee = dq ? dq.fee : 0, disc = codeApplied && codeInfo?.ok ? Math.min(+codeInfo.discount || 0, sub + fee) : 0, total = Math.max(0, Math.round((sub + fee - disc) * 100) / 100)
+  const clearCode = (keepText) => { setCodeApplied(''); setCodeInfo(null); setCodeErr(''); if (!keepText) setCodeIn('') }
+  const codeLabel = c => !c ? '' : c.applies_to === 'delivery' ? (c.disc_type === 'percent' ? (+c.value >= 100 ? 'Delivery gratis' : `${+c.value}% de descuento en el delivery`) : `${money(c.value)} de descuento en el delivery`) : (c.disc_type === 'percent' ? `${+c.value}% de descuento en tus productos` : `${money(c.value)} de descuento en tus productos`)
+  const checkCode = code => rpc('validate_discount_code', { p_code: code, p_branch: bid, p_items: cart.map(i => ({ id: i.id, qty: i.qty })), p_phone: f.phone.replace(/\D/g, '').length >= 6 ? f.phone : null, p_lat: gps?.lat ?? null, p_lng: gps?.lng ?? null })
+  const codeMsg = x => /Could not find the function|schema cache|does not exist/i.test(x.error || '') ? 'Los códigos de descuento aún no están activados en la tienda.' : (x.error || x.data?.error || 'Código no válido')
+  const applyCode = async () => {
+    const c = codeIn.trim(); setCodeErr(''); if (!c) return setCodeErr('Escribe tu código de descuento')
+    setCodeBusy(true); const x = await checkCode(c); setCodeBusy(false)
+    if (x.error || !x.data?.ok) return setCodeErr(codeMsg(x))
+    setCodeApplied(x.data.code); setCodeIn(x.data.code); setCodeInfo(x.data)
+  }
+  // Si cambia el carrito, el celular o la ubicación, se vuelve a validar (mínimo de compra, usos por cliente, delivery...)
+  const itemsKey = cart.map(i => i.id + ':' + i.qty).join(','), phoneKey = f.phone.replace(/\D/g, '')
+  useEffect(() => {
+    if (!codeApplied) return
+    let alive = true
+    const t = setTimeout(async () => { const x = await checkCode(codeApplied); if (!alive) return; if (x.error || !x.data?.ok) { clearCode(true); setCodeErr(codeMsg(x)) } else setCodeInfo(x.data) }, 450)
+    return () => { alive = false; clearTimeout(t) }
+  }, [codeApplied, itemsKey, phoneKey, bid, gps?.lat, gps?.lng])
   const add = p => setCart(c => c.find(i => i.id === p.id) ? c.map(i => i.id === p.id ? { ...i, qty: Math.min(i.qty + 1, st(p.id)) } : i) : [...c, { id: p.id, name: p.name, price: +p.price, qty: 1 }])
   const bad = !terms || !cart.length || f.name.trim().length < 2 || f.phone.replace(/\D/g, '').length < 6 || !gps || (dq && !dq.ok) || (f.mode === 'pagar_ahora' && !proof) || (f.mode === 'culqi' && (!/^\S+@\S+\.\S+$/.test(f.email.trim()) || total < 3))
   // Pago en línea (Culqi): el servidor registra el pedido y crea la orden de pago; luego se abre el formulario dentro de la tienda
   const startOnline = async () => {
     setErr(''); setBusy(true)
     try {
-      const r = await fetch('/api/culqi/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ branch: bid, name: f.name, phone: f.phone, email: f.email.trim(), notes: f.notes.trim() || null, items: cart.map(i => ({ id: i.id, qty: i.qty })), lat: gps.lat, lng: gps.lng, acc: gps.acc }) })
+      const r = await fetch('/api/culqi/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ branch: bid, name: f.name, phone: f.phone, email: f.email.trim(), notes: f.notes.trim() || null, items: cart.map(i => ({ id: i.id, qty: i.qty })), lat: gps.lat, lng: gps.lng, acc: gps.acc, code: codeApplied || null }) })
       const d = await r.json().catch(() => ({ error: 'Respuesta no válida del servidor' }))
       if (d.error) { setBusy(false); loadStock(); return setErr(d.error) }
       rememberOrder(d.order_number); setCq(d)
@@ -134,7 +154,7 @@ export default function Tienda() {
   const onlineDone = async res => {
     const o = cq.sale, pay = { ...res, method: res.method || 'pagoefectivo' }
     const sale = { ...o, source: 'web', status: 'pendiente', voucher: 'Nota de Venta', pay_mode: 'culqi', pay_status: res.kind === 'paid' ? 'pagado' : 'pendiente', pay_method: pay.method, pay_cip: res.cip || null }
-    setCq(null); setOk({ sale, ctx: { settings: cfg, branch: o.branch }, pay }); setGps(null); setCart([]); setOpen(false); setF(x => ({ ...x, notes: '' })); loadStock()
+    setCq(null); clearCode(); setOk({ sale, ctx: { settings: cfg, branch: o.branch }, pay }); setGps(null); setCart([]); setOpen(false); setF(x => ({ ...x, notes: '' })); loadStock()
     try { await ticketPDF(sale, { settings: cfg, branch: o.branch }) } catch (e) {}
   }
   const order = async () => {
@@ -143,10 +163,10 @@ export default function Tienda() {
     try {
       let path = null
       if (f.mode === 'pagar_ahora') { const blob = await compressImage(proof, { max: 1400 }); path = await upload('proofs', rnd() + '.webp', blob, 'image/webp') }
-      const x = await rpc('create_web_order', { p_branch: bid, p_name: f.name, p_phone: f.phone, p_notes: f.notes.trim() || null, p_items: cart.map(i => ({ id: i.id, qty: i.qty })), p_pay_mode: f.mode, p_proof: path, p_lat: gps.lat, p_lng: gps.lng, p_acc: gps.acc })
+      const x = await rpc('create_web_order', { p_branch: bid, p_name: f.name, p_phone: f.phone, p_notes: f.notes.trim() || null, p_items: cart.map(i => ({ id: i.id, qty: i.qty })), p_pay_mode: f.mode, p_proof: path, p_lat: gps.lat, p_lng: gps.lng, p_acc: gps.acc, p_code: codeApplied || null })
       if (x.error) { setBusy(false); loadStock(); return setErr(x.error) }
       const o = x.data, sale = { ...o, source: 'web', status: 'pendiente', voucher: 'Nota de Venta' }
-      rememberOrder(o.order_number); setOk({ sale, ctx: { settings: cfg, branch: o.branch } }); setGps(null); setCart([]); setProof(null); setOpen(false); setF({ ...f, notes: '' }); loadStock()
+      rememberOrder(o.order_number); clearCode(); setOk({ sale, ctx: { settings: cfg, branch: o.branch } }); setGps(null); setCart([]); setProof(null); setOpen(false); setF({ ...f, notes: '' }); loadStock()
       try { await ticketPDF(sale, { settings: cfg, branch: o.branch }) } catch (e) {}
     } catch (e) { setErr('No se pudo enviar el pedido. Revisa tu conexión e inténtalo de nuevo.') }
     setBusy(false)
@@ -255,6 +275,14 @@ export default function Tienda() {
       {!gps && !gpsErr && <small style={{ color: '#777', marginTop: -6 }}>Obligatoria: con tu ubicación GPS te llevamos el pedido. Actívala en tu celular y permite el acceso cuando el navegador lo pida.</small>}
       {gpsErr && <small style={{ color: '#b91c1c', marginTop: -6 }}>⚠ {gpsErr}</small>}
       <input placeholder="Referencia o comentario (opcional) · ej: casa azul, 2do piso" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} />
+      <div className="dcode">
+        <b style={{ fontSize: 14 }}>Código de descuento</b>
+        {codeApplied && codeInfo?.ok ? <div className="dcode-ok"><span>🏷 <b>{codeApplied}</b><small>{codeInfo.need_gps ? 'Se aplicará al delivery cuando compartas tu ubicación' : codeLabel(codeInfo)}</small></span><button type="button" onClick={() => clearCode()}>Quitar</button></div>
+          : <div className="dcode-row"><input placeholder="¿Tienes un código?" value={codeIn} maxLength={40} autoCapitalize="characters" autoComplete="off" onChange={e => { setCodeIn(e.target.value.toUpperCase().replace(/\s/g, '')); setCodeErr('') }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyCode() } }} />
+            <button type="button" disabled={codeBusy || !codeIn.trim() || !cart.length} onClick={applyCode}>{codeBusy ? '...' : 'Aplicar'}</button></div>}
+        {!cart.length && !codeApplied && <small style={{ color: '#777' }}>Agrega productos al carrito para usar tu código.</small>}
+        {codeErr && <small style={{ color: '#b91c1c' }}>⚠ {codeErr}</small>}
+      </div>
       <b style={{ fontSize: 14 }}>Forma de pago</b>
       <button type="button" style={chip(f.mode === 'contra_entrega')} onClick={() => setF({ ...f, mode: 'contra_entrega' })}><b>Pago contra entrega</b><br /><small>Pagas cuando recibes tu pedido</small></button>
       <button type="button" style={chip(f.mode === 'pagar_ahora')} onClick={() => setF({ ...f, mode: 'pagar_ahora' })}><b>Pagar ahora con Yape</b><br /><small>Escanea el QR y adjunta tu captura</small></button>
@@ -271,6 +299,7 @@ export default function Tienda() {
       {cart.length > 0 && <div style={{ display: 'grid', gap: 4, fontSize: 14 }}>
         <div className="row"><span>Subtotal</span><span>{money(sub)}</span></div>
         <div className="row"><span>🛵 Delivery{dq ? ` (${dq.km.toFixed(1)} km)` : ''}</span><span>{dq ? money(dq.fee) : 'Con tu ubicación'}</span></div>
+        {disc > 0 && <div className="row" style={{ color: '#15803d' }}><span>🏷 Código {codeApplied}</span><b>- {money(disc)}</b></div>}
         {dq && !dq.ok ? <small style={{ color: '#b91c1c' }}>⚠ Estás a {dq.km.toFixed(1)} km y el delivery llega hasta {dq.maxKm} km. Escríbenos por WhatsApp para coordinar tu pedido.</small>
           : <small style={{ color: '#777' }}>Delivery {money(dr.base)} hasta {dr.baseKm} km; luego + {money(dr.perKm)} por cada km adicional. Se calcula solo con tu ubicación.</small>}
       </div>}

@@ -664,3 +664,12 @@ html{-webkit-text-size-adjust:100%}img{max-width:100%}
 .terms-ck button:hover{color:var(--red-d)}
 
 .claim-st{max-width:520px;margin:0 auto;padding:6px 0}.claim-st .cl{display:block;margin-bottom:14px}.claim-res{margin-top:18px;border:1px solid var(--line);border-radius:14px;padding:16px 18px;background:#faf8f7}.claim-res h4{margin:0 0 6px;font-size:15px}.claim-res p{margin:6px 0;font-size:14px;line-height:1.55;white-space:pre-wrap}.claim-res .tag{margin-left:6px}
+
+/* Código de descuento (carrito de la tienda) */
+.dcode{display:grid;gap:6px}.dcode-row{display:flex;gap:8px}.dcode-row input{flex:1;min-width:0;text-transform:uppercase;letter-spacing:.5px}
+.dcode-row button{border:0;border-radius:10px;background:#111;color:#fff;font-weight:700;padding:0 16px;cursor:pointer;font-size:14px}.dcode-row button:disabled{opacity:.45;cursor:default}
+.dcode-ok{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#ecfdf5;border:1.5px dashed #16a34a;color:#065f46;border-radius:12px;padding:10px 12px}
+.dcode-ok span{display:grid;gap:2px;font-size:14px}.dcode-ok small{color:#047857}.dcode-ok button{border:0;background:transparent;color:#b91c1c;font-weight:700;cursor:pointer;font-size:13px;text-decoration:underline}
+/* Sección Código de descuento (sistema) */
+.dc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}.dc-kpis>div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}.dc-kpis b{display:block;font-size:22px}.dc-kpis small{color:var(--mut)}
+.dc-code{font-family:'Courier New',monospace;font-weight:800;letter-spacing:.6px;background:#f3eeec;border-radius:6px;padding:2px 8px;display:inline-block}

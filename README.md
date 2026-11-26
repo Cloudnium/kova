@@ -162,3 +162,12 @@ Ejecuta `supabase/schema_v12.sql` (despuÃ©s de v11) y redespliega. En Usuarios
 2. Los reclamos del footer de la tienda («Atención al cliente» > Libro de Reclamaciones) ya no se envían por correo: se guardan en la tabla `claims`. Ya no se necesitan `RESEND_API_KEY`, `RESEND_FROM` ni `RECLAMOS_TO_EMAIL`.
 3. Admin > Reclamos: lista con filtros y búsqueda, aviso en vivo con sonido, estado (Pendiente / En proceso / Atendido) y respuesta al cliente. Solo el administrador puede eliminar.
 4. El cliente ve el estado y la respuesta en el footer («Consultar mi reclamo») con su código + número de documento.
+
+
+## Códigos de descuento (schema_v22)
+Ejecuta `supabase/schema_v22_codigos_descuento.sql` (después de v21) y vuelve a desplegar. Menú **Código de descuento** (solo administrador):
+- Crea códigos que descuentan sobre la **lista de compra** (% o S/) o sobre el **delivery** (% o S/; 100 % = delivery gratis).
+- Reglas: compra mínima, descuento máximo, usos totales, usos por celular, fechas (hora de Lima) y sede.
+- Ves quién creó cada código y cuándo, si ya se usó, cuántas veces y el **historial de usos** (fecha, cliente, celular, pedido, sede y monto).
+- En el carrito de la tienda hay una sección «Código de descuento». El servidor valida y calcula el descuento; el pedido guarda `discount_code` y `code_discount`, y el ticket y Pedidos web lo muestran.
+- Si el pedido se rechaza, se anula o el pago en línea no se completa, el uso se libera automáticamente.

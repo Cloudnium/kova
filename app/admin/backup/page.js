@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { supabase, audit } from '../../../lib/supabase'
 import { Head, Err } from '../../../lib/ui'
-const TABLES = ['branches', 'products', 'branch_stock', 'customers', 'sales', 'expenses', 'cash_registers', 'stock_moves', 'audit_log', 'profiles', 'settings', 'doc_counters']
+const TABLES = ['branches', 'products', 'branch_stock', 'customers', 'sales', 'expenses', 'cash_registers', 'stock_moves', 'audit_log', 'profiles', 'settings', 'doc_counters', 'discount_codes', 'discount_redemptions']
 const fetchAll = async t => { let out = [], from = 0; for (;;) { const { data, error } = await supabase.from(t).select('*').range(from, from + 999); if (error) throw new Error(`${t}: ${error.message}`); out = out.concat(data); if (data.length < 1000) return out; from += 1000 } }
 const dl = (name, text, type) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click() }
 const csv = rows => { if (!rows.length) return ''; const h = Object.keys(rows[0]); return '\ufeff' + [h.join(','), ...rows.map(r => h.map(k => { const v = r[k] == null ? '' : typeof r[k] === 'object' ? JSON.stringify(r[k]) : String(r[k]); return `"${v.replace(/"/g, '""')}"` }).join(','))].join('\n') }
