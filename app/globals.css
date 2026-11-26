@@ -675,3 +675,6 @@ html{-webkit-text-size-adjust:100%}img{max-width:100%}
 /* Sección Código de descuento (sistema) */
 .dc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}.dc-kpis>div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}.dc-kpis b{display:block;font-size:22px}.dc-kpis small{color:var(--mut)}
 .dc-code{font-family:'Courier New',monospace;font-weight:800;letter-spacing:.6px;background:#f3eeec;border-radius:6px;padding:2px 8px;display:inline-block}
+
+/* Descripción corta visible en cada producto (requisito de validación de Culqi) */
+.pdesc{font-size:12px;line-height:1.35;color:var(--mut);max-width:230px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:0 0 4px;cursor:pointer}

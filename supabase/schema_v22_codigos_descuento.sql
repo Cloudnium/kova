@@ -141,7 +141,8 @@ begin
   if coalesce(p_phone, '') !~ '^[0-9+ ]{6,20}$' then raise exception 'Escribe un celular válido'; end if;
   if p_lat is null or p_lng is null or p_lat not between -90 and 90 or p_lng not between -180 and 180 or (p_lat = 0 and p_lng = 0) then
     raise exception 'Comparte tu ubicación con el botón «Usar mi ubicación» para poder llevarte el pedido'; end if;
-  if p_pay_mode not in ('contra_entrega', 'pagar_ahora') then raise exception 'Elige una forma de pago'; end if;
+  -- 'culqi' solo lo puede usar create_culqi_order (marca app.culqi_order): así el pedido nace ya como pago en línea y NO suena el aviso hasta que Culqi confirme el pago
+  if p_pay_mode not in ('contra_entrega', 'pagar_ahora') and not (p_pay_mode = 'culqi' and coalesce(current_setting('app.culqi_order', true), '') = '1') then raise exception 'Elige una forma de pago'; end if;
   if p_pay_mode = 'pagar_ahora' and (p_proof is null or p_proof !~ '^[A-Za-z0-9._-]{5,120}$') then raise exception 'Adjunta la foto de tu pago'; end if;
   if jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 or jsonb_array_length(p_items) > 60 then raise exception 'Tu carrito está vacío'; end if;
   if (select count(*) from sales where source = 'web' and phone = trim(p_phone) and created_at > now() - interval '1 hour') >= 5 then
@@ -169,9 +170,10 @@ begin
     v_disc := (v_e->>'discount')::numeric; v_dcode := v_e->>'code';
   end if;
 
-  insert into sales(branch_id, total, subtotal, delivery_fee, delivery_km, discount_code, code_discount, payment, voucher, customer_name, phone, address, notes, geo_lat, geo_lng, geo_acc, source, status, paid, pay_mode, payment_proof, order_number, items)
-  values (p_branch, v_tot + v_fee - v_disc, v_tot, v_fee, (v_q->>'km')::numeric, v_dcode, v_disc, case p_pay_mode when 'pagar_ahora' then 'Yape' else 'Efectivo' end, 'Nota de Venta', trim(p_name), trim(p_phone),
+  insert into sales(branch_id, total, subtotal, delivery_fee, delivery_km, discount_code, code_discount, payment, voucher, customer_name, phone, address, notes, geo_lat, geo_lng, geo_acc, source, status, paid, pay_mode, pay_status, pay_updated_at, payment_proof, order_number, items)
+  values (p_branch, v_tot + v_fee - v_disc, v_tot, v_fee, (v_q->>'km')::numeric, v_dcode, v_disc, case p_pay_mode when 'pagar_ahora' then 'Yape' when 'culqi' then 'Tarjeta' else 'Efectivo' end, 'Nota de Venta', trim(p_name), trim(p_phone),
     null, nullif(left(trim(coalesce(p_notes, '')), 300), ''), round(p_lat, 6), round(p_lng, 6), least(greatest(p_acc, 0), 100000), 'web', 'pendiente', false, p_pay_mode,
+    case when p_pay_mode = 'culqi' then 'pendiente' end, case when p_pay_mode = 'culqi' then now() end,
     case p_pay_mode when 'pagar_ahora' then p_proof end, next_doc(p_branch, 'PW'), v_items) returning * into v_sale;
 
   if v_dcode is not null then
@@ -196,9 +198,10 @@ returns jsonb language plpgsql security definer set search_path = public as $$
 declare v jsonb;
 begin
   if coalesce(p_email, '') !~* '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' or length(p_email) > 120 then raise exception 'Escribe un correo válido'; end if;
-  v := create_web_order(p_branch, p_name, p_phone, p_notes, p_items, 'contra_entrega', null, p_lat, p_lng, p_acc, p_code);
-  update sales set pay_mode = 'culqi', pay_status = 'pendiente', payment = 'Tarjeta', customer_email = lower(trim(p_email)), pay_updated_at = now()
-    where id = (v->>'id')::uuid;
+  perform set_config('app.culqi_order', '1', true);      -- el pedido se crea YA como pago en línea (sin sonido en el sistema hasta que se acredite)
+  v := create_web_order(p_branch, p_name, p_phone, p_notes, p_items, 'culqi', null, p_lat, p_lng, p_acc, p_code);
+  perform set_config('app.culqi_order', '', true);
+  update sales set customer_email = lower(trim(p_email)) where id = (v->>'id')::uuid;
   return v || jsonb_build_object('pay_mode', 'culqi');
 end $$;
 revoke all on function create_culqi_order(uuid, text, text, text, text, jsonb, numeric, numeric, int, text) from public, anon, authenticated;

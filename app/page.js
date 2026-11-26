@@ -216,6 +216,7 @@ export default function Tienda() {
         {off && <span className="save">AHORRA {money(p.old_price - p.price)}</span>}{p.promo ? <span className="ptag">🏷 {p.promo.name}</span> : p.kind === 'combo' && <span className="ptag">🎁 Combo</span>}
         <div className="pimg" role="button" tabIndex={0} aria-label={'Ver ' + p.name} onClick={() => setPv(p)} onKeyDown={e => e.key === 'Enter' && setPv(p)}>{p.image_url ? <img src={p.image_url} alt={p.name} /> : <svg width="46" height="120" viewBox="0 0 24 60" fill="none" stroke="#d3cbc8" strokeWidth="1.2"><path d="M10 2h4v10c0 3 5 5 5 10v34a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V22c0-5 5-7 5-10z" /></svg>}</div>
         <p className="pname" role="button" tabIndex={0} onClick={() => setPv(p)} onKeyDown={e => e.key === 'Enter' && setPv(p)}>{p.name}</p>
+        <p className="pdesc" onClick={() => setPv(p)}>{(p.description || '').trim() || p.category}</p>
         <p className="pprice"><span className={off ? 'now' : ''}>{money(p.price)}</span>{off && <s>{money(p.old_price)}</s>}</p>
         <button className="padd" disabled={n < 1} onClick={() => add(p)}>{n < 1 ? 'Agotado' : 'Agregar'}</button></div> })}
         {!list.length && <p>No hay productos en esta categoría.</p>}</div>
