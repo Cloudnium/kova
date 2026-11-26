@@ -25,7 +25,7 @@ export default function AdminLayout({ children }) {
   const [col, setCol] = useState(false), [narrow, setNarrow] = useState(false), [mob, setMob] = useState(false), [net, setNet] = useState({ s: 'ok', ms: 0 })
   const [all, setAll] = useState([]), [branchId, setBranchId] = useState(null), [settings, setSettings] = useState({}), [menu, setMenu] = useState(false)
   const [low, setLow] = useState([]), [lowOpen, setLowOpen] = useState(false), [lowErr, setLowErr] = useState('')
-  const [box, setBox] = useState(undefined), [boxM, setBoxM] = useState(false), [bf, setBf] = useState({ name: 'Caja 1', amt: 0 }), [be, setBe] = useState(''), [blocked, setBlocked] = useState(false)
+  const [box, setBox] = useState(undefined), [boxM, setBoxM] = useState(false), [bf, setBf] = useState({ name: '', amt: 0 }), [nextBox, setNextBox] = useState(null), [be, setBe] = useState(''), [blocked, setBlocked] = useState(false)
   const asked = useRef(new Set()), acc = useRef([]), cfg = useRef({}), names = useRef({}), menuRef = useRef(null)
 
   useEffect(() => { try { setCol(localStorage.getItem('side-col') === '1') } catch (e) {} }, [])
@@ -140,6 +140,8 @@ export default function AdminLayout({ children }) {
   useEffect(() => { if (isMkt && !MKT_OK.includes(path)) r.replace('/admin/fotos'); else if (prof && !isAdmin && !isMkt && ADMIN_ONLY.includes(path.split('/')[2])) r.replace('/admin') }, [path, prof])
 
   const pick = id => { setSede(id); setBranchId(id); setMenu(false); setBox(undefined) }
+  // número que le tocará a la próxima caja (correlativo por sede, no se reinicia cada día)
+  useEffect(() => { if (!boxM || !branchId || branchId === 'all') return; supabase.from('doc_counters').select('last_number').eq('branch_id', branchId).eq('doc', 'CAJA').maybeSingle().then(r => setNextBox(r.error ? null : (r.data?.last_number || 0) + 1)) }, [boxM, branchId])
   const openBox = async () => { setBe(''); const x = await rpc('open_cash', { p_branch: branchId, p_name: bf.name, p_amount: +bf.amt || 0 }); if (x.error) return setBe(x.error); setBoxM(false); reloadBox() }
   const ctx = useMemo(() => ({ user, prof, isAdmin, branches, allBranches: all, branchId, branch, setBranch: pick, settings, reloadSettings: loadSettings, box, reloadBox, askBox: () => setBoxM(true), pending, refreshPending }),
     [user, prof, isAdmin, branches, all, branchId, branch, settings, box, pending, loadSettings, reloadBox, refreshPending])
@@ -182,7 +184,7 @@ export default function AdminLayout({ children }) {
     </div>
     {boxM && branchId !== 'all' && <Modal title={`Abrir caja · ${branch?.name || ''}`} onClose={() => setBoxM(false)}>
       <p className="sub" style={{ margin: 0 }}>En cada sede necesitas una caja abierta para registrar ventas.</p><Err e={be} />
-      <label>Nombre de la caja</label><input value={bf.name} onChange={e => setBf({ ...bf, name: e.target.value })} />
+      <label>Nombre de la caja <small style={{ color: 'var(--mut)', fontWeight: 400 }}>(opcional: si lo dejas vacío se numera solo)</small></label><input value={bf.name} placeholder={nextBox ? `Automático: Caja ${nextBox}` : 'Automático: Caja 1, 2, 3...'} onChange={e => setBf({ ...bf, name: e.target.value })} />
       <label>Monto inicial en efectivo (S/)</label><input type="number" min="0" value={bf.amt} onChange={e => setBf({ ...bf, amt: e.target.value })} />
       <button className="btn g" onClick={openBox}>Abrir caja</button><button className="btn o" onClick={() => setBoxM(false)}>Ahora no</button></Modal>}
     <Assistant />
