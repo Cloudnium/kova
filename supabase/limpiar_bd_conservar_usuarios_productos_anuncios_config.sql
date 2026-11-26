@@ -33,7 +33,7 @@ declare
   v_conservar_stock    boolean := false;   -- true = mantiene el stock actual de cada producto por sede
   v_conservar_promos   boolean := false;   -- true = mantiene las promociones (descuentos programados)
   -- ============================================
-  v_lista text[] := array['order_push', 'culqi_events', 'discount_redemptions', 'sales', 'purchases', 'expenses', 'cash_registers', 'stock_moves',
+  v_lista text[] := array['order_push', 'culqi_events', 'discount_redemptions', 'discount_codes', 'sales', 'purchases', 'expenses', 'cash_registers', 'stock_moves',
                           'customers', 'doc_counters', 'audit_log'];
   t text; n bigint; v_resumen text := '';
 begin

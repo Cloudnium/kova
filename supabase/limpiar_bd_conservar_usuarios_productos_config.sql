@@ -18,7 +18,7 @@
 -- BORRA (todo lo demás, incluida la AUDITORÍA, sin dejar ni un registro):
 --   ventas y pedidos web (incluye pagos de Culqi) · cajas · egresos · compras · movimientos de stock · clientes ·
 --   reclamos (Libro de Reclamaciones) · avisos de pedidos (order_push) · registro de avisos de Culqi · auditoría ·
---   historial de notificaciones push enviadas · promociones · correlativos (la numeración vuelve a empezar) · stock por sede (queda en 0)
+--   historial de notificaciones push enviadas · promociones · códigos de descuento y sus usos · correlativos (la numeración vuelve a empezar) · stock por sede (queda en 0)
 --
 -- OPCIÓN: v_conservar_suscritos = true mantiene los celulares/navegadores de clientes suscritos a notificaciones push
 --         (no se pueden recuperar si se borran). Ponla en false si quieres borrarlos también.
@@ -31,7 +31,7 @@ declare
   v_confirmar            text    := 'NO';   -- 'NO' = solo prueba · 'BORRAR' = borra de verdad
   v_conservar_suscritos  boolean := true;   -- true = conserva los dispositivos suscritos a push
   -- ============================================
-  v_lista text[] := array['order_push', 'culqi_events', 'claims', 'discount_redemptions', 'sales', 'purchases', 'expenses', 'cash_registers', 'stock_moves',
+  v_lista text[] := array['order_push', 'culqi_events', 'claims', 'discount_redemptions', 'discount_codes', 'sales', 'purchases', 'expenses', 'cash_registers', 'stock_moves',
                           'customers', 'doc_counters', 'branch_stock', 'promotions', 'push_announcements', 'audit_log'];
   t text; n bigint; v_resumen text := '';
 begin

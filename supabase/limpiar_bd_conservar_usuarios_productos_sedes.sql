@@ -33,7 +33,7 @@ declare
   v_conservar_config boolean := false;   -- true = mantiene logo, WhatsApp, franja de texto, datos del ticket, etc.
   v_conservar_push   boolean := false;   -- true = mantiene los dispositivos suscritos a notificaciones
   -- ============================================
-  v_lista text[] := array['discount_redemptions', 'sales', 'purchases', 'expenses', 'cash_registers', 'stock_moves', 'promotions',
+  v_lista text[] := array['discount_redemptions', 'discount_codes', 'sales', 'purchases', 'expenses', 'cash_registers', 'stock_moves', 'promotions',
                           'push_announcements', 'customers', 'doc_counters', 'audit_log'];
   t text; n bigint; v_resumen text := '';
 begin
