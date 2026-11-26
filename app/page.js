@@ -278,7 +278,7 @@ export default function Tienda() {
       <div className="dcode">
         <b style={{ fontSize: 14 }}>Código de descuento</b>
         {codeApplied && codeInfo?.ok ? <div className="dcode-ok"><span>🏷 <b>{codeApplied}</b><small>{codeInfo.need_gps ? 'Se aplicará al delivery cuando compartas tu ubicación' : codeLabel(codeInfo)}</small></span><button type="button" onClick={() => clearCode()}>Quitar</button></div>
-          : <div className="dcode-row"><input placeholder="¿Tienes un código? Escríbelo aquí" value={codeIn} maxLength={40} autoCapitalize="characters" autoComplete="off" onChange={e => { setCodeIn(e.target.value.toUpperCase().replace(/\s/g, '')); setCodeErr('') }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyCode() } }} />
+          : <div className="dcode-row"><input placeholder="¿Tienes un código?" value={codeIn} maxLength={40} autoCapitalize="characters" autoComplete="off" onChange={e => { setCodeIn(e.target.value.toUpperCase().replace(/\s/g, '')); setCodeErr('') }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyCode() } }} />
             <button type="button" disabled={codeBusy || !codeIn.trim() || !cart.length} onClick={applyCode}>{codeBusy ? '...' : 'Aplicar'}</button></div>}
         {!cart.length && !codeApplied && <small style={{ color: '#777' }}>Agrega productos al carrito para usar tu código.</small>}
         {codeErr && <small style={{ color: '#b91c1c' }}>⚠ {codeErr}</small>}
