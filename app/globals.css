@@ -632,9 +632,11 @@ html{-webkit-text-size-adjust:100%}img{max-width:100%}
 .trk-ok{background:#e8f7ee;color:#166534;border-radius:10px;padding:10px 12px;margin:10px 0;font-size:14px}
 
 /* ===== Pago en línea (Culqi) ===== */
-.mbox.cq{width:min(560px,96vw);gap:10px}
+.mbox.cq{width:min(620px,96vw);max-height:96vh;gap:10px;padding:16px 18px}
 .cq-sum{display:flex;justify-content:space-between;align-items:center;background:#faf6f5;border:1px solid var(--line);border-radius:12px;padding:10px 14px}
-.cq-box{min-height:140px;width:100%}
+.cq-box{width:100%;height:clamp(460px,70vh,680px);min-height:460px}
+.cq-box>*{max-width:100%}
+@media(max-width:520px){.mbox.cq{width:100vw;max-width:100vw;max-height:100dvh;border-radius:0;padding:12px}.cq-box{height:calc(100dvh - 230px);min-height:420px}}
 .cq-st{display:flex;align-items:center;gap:10px;color:var(--mut);padding:18px 4px;justify-content:center;text-align:center}
 .cq-spin{width:18px;height:18px;border:3px solid #e8e2e0;border-top-color:var(--red);border-radius:50%;animation:cqspin .8s linear infinite;flex:none}
 @keyframes cqspin{to{transform:rotate(360deg)}}
